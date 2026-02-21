@@ -557,66 +557,115 @@
 // ——— FART CATEGORIES ———
 const CATEGORIES = [
   {
-    name: "THE RIPPER",
-    emoji: "💥",
-    desc: "High amplitude, broad spectrum. Short and explosive. A classic crowd-stopper.",
-    test: (f) => f.amplitude > 0.6 && f.duration < 1.2 && f.bandwidth > 400,
-  },
-  {
     name: "THE SQUEAKER",
     emoji: "🐭",
     desc: "Dominant high frequencies. Pinched, sharp, and unmistakable. Usually precedes laughter.",
-    test: (f) => f.dominantFreq > 600 && f.duration < 0.8,
+    score: (f) => {
+      let s = 0;
+      if (f.dominantFreq > 600) s += 3;
+      if (f.dominantFreq > 900) s += 2;
+      if (f.hiRatio > 0.35) s += 2;
+      if (f.duration < 1.0) s += 1;
+      if (f.amplitude > 0.15) s += 1;
+      return s;
+    }
   },
   {
-    name: "THE RUMBLER",
-    emoji: "🌋",
-    desc: "Low frequency dominance, extended duration. Felt as much as heard. Rumbles the furniture.",
-    test: (f) => f.dominantFreq < 250 && f.duration > 1.5,
-  },
-  {
-    name: "THE SILENT BUT DEADLY",
-    emoji: "💀",
-    desc: "Low amplitude, extended low-frequency emission. Stealthy. Devastating. No survivors.",
-    test: (f) => f.amplitude < 0.3 && f.dominantFreq < 300,
-  },
-  {
-    name: "THE WET ONE",
-    emoji: "💧",
-    desc: "Irregular amplitude envelope with broadband noise. The one that requires a follow-up assessment.",
-    test: (f) => f.irregularity > 0.6 && f.bandwidth > 300,
-  },
-  {
-    name: "THE MACHINE GUN",
-    emoji: "💨",
-    desc: "Staccato bursts detected. Rapid-fire emission pattern. Highly rhythmic and persistent.",
-    test: (f) => f.burstiness > 0.5 && f.duration > 1.0,
-  },
-  {
-    name: "THE PHANTOM",
-    emoji: "👻",
-    desc: "Barely registered on sensors. Near-inaudible. An existential mystery for all nearby parties.",
-    test: (f) => f.amplitude < 0.2,
+    name: "THE RIPPER",
+    emoji: "💥",
+    desc: "High amplitude, broad spectrum. Short and explosive. A classic crowd-stopper.",
+    score: (f) => {
+      let s = 0;
+      if (f.amplitude > 0.5) s += 3;
+      if (f.duration < 1.5) s += 2;
+      if (f.bandwidth > 350) s += 2;
+      if (f.dominantFreq > 200 && f.dominantFreq < 700) s += 1;
+      return s;
+    }
   },
   {
     name: "THE FOGHORN",
     emoji: "🚢",
     desc: "Low dominant frequency, very high amplitude. A warning to ships and small aircraft alike.",
-    test: (f) => f.amplitude > 0.7 && f.dominantFreq < 300,
+    score: (f) => {
+      let s = 0;
+      if (f.amplitude > 0.6) s += 3;
+      if (f.dominantFreq < 250) s += 3;
+      if (f.lowRatio > 0.6) s += 2;
+      if (f.duration > 0.8) s += 1;
+      return s;
+    }
+  },
+  {
+    name: "THE RUMBLER",
+    emoji: "🌋",
+    desc: "Low frequency dominance, extended duration. Felt as much as heard. Rumbles the furniture.",
+    score: (f) => {
+      let s = 0;
+      if (f.dominantFreq < 300) s += 2;
+      if (f.lowRatio > 0.5) s += 2;
+      if (f.duration > 1.5) s += 3;
+      if (f.amplitude > 0.2 && f.amplitude < 0.65) s += 1;
+      return s;
+    }
+  },
+  {
+    name: "THE WET ONE",
+    emoji: "💧",
+    desc: "Irregular amplitude envelope with broadband noise. The one that requires a follow-up assessment.",
+    score: (f) => {
+      let s = 0;
+      if (f.irregularity > 0.5) s += 3;
+      if (f.bandwidth > 300) s += 2;
+      if (f.burstiness > 0.3) s += 2;
+      if (f.amplitude > 0.2) s += 1;
+      return s;
+    }
+  },
+  {
+    name: "THE MACHINE GUN",
+    emoji: "💨",
+    desc: "Staccato bursts detected. Rapid-fire emission pattern. Highly rhythmic and persistent.",
+    score: (f) => {
+      let s = 0;
+      if (f.burstiness > 0.4) s += 3;
+      if (f.duration > 1.2) s += 2;
+      if (f.irregularity > 0.4) s += 2;
+      return s;
+    }
+  },
+  {
+    name: "THE SILENT BUT DEADLY",
+    emoji: "💀",
+    desc: "Low amplitude, extended low-frequency emission. Stealthy. Devastating. No survivors.",
+    score: (f) => {
+      let s = 0;
+      if (f.amplitude < 0.25) s += 4;
+      if (f.dominantFreq < 350) s += 2;
+      if (f.lowRatio > 0.4) s += 2;
+      if (f.duration > 0.5) s += 1;
+      return s;
+    }
+  },
+  {
+    name: "THE PHANTOM",
+    emoji: "👻",
+    desc: "Barely registered on sensors. Near-inaudible. An existential mystery for all nearby parties.",
+    score: (f) => {
+      let s = 0;
+      if (f.amplitude < 0.15) s += 5;
+      if (f.rms < 0.05) s += 3;
+      return s;
+    }
   },
 ];
-
-const FALLBACK = {
-  name: "UNCLASSIFIED EMISSION",
-  emoji: "🔬",
-  desc: "Signal detected but pattern inconclusive. Recommend repeat analysis with closer proximity.",
-};
 
 // ——— STATE ———
 let audioCtx, analyser, mediaStream, source;
 let isRecording = false;
 let recordStart = 0;
-let dataLog = [];
+let dataLog = [];       // time-domain chunks
+let freqLog = [];       // frequency-domain snapshots collected during recording
 let history = [];
 let animFrame;
 let vizDataBuffer = new Float32Array(2048);
@@ -674,10 +723,16 @@ function startViz() {
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Collect data for analysis
+      // Collect time-domain data
       analyser.getFloatTimeDomainData(vizDataBuffer);
       const chunk = new Float32Array(vizDataBuffer);
       dataLog.push(chunk);
+      // Collect frequency snapshots every ~4 frames
+      if (dataLog.length % 4 === 0) {
+        const fSnap = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(fSnap);
+        freqLog.push(fSnap);
+      }
     } else {
       // Spectrum bars when idle
       analyser.getByteFrequencyData(dataArr);
@@ -705,85 +760,111 @@ function startViz() {
 function analyzeRecording() {
   if (!dataLog.length) return;
 
-  // Flatten all recorded chunks
+  // Flatten all recorded time-domain chunks
   const totalSamples = dataLog.reduce((a, c) => a + c.length, 0);
   const combined = new Float32Array(totalSamples);
   let offset = 0;
-  for (const chunk of dataLog) {
-    combined.set(chunk, offset);
-    offset += chunk.length;
-  }
+  for (const chunk of dataLog) { combined.set(chunk, offset); offset += chunk.length; }
 
   const sampleRate = audioCtx.sampleRate;
   const duration = totalSamples / sampleRate;
 
-  // RMS amplitude
-  let sumSq = 0;
-  for (let i = 0; i < combined.length; i++) sumSq += combined[i] ** 2;
-  const rms = Math.sqrt(sumSq / combined.length);
-
-  // Peak amplitude
-  let peak = 0;
+  // RMS & peak amplitude
+  let sumSq = 0, peak = 0;
   for (let i = 0; i < combined.length; i++) {
+    sumSq += combined[i] ** 2;
     if (Math.abs(combined[i]) > peak) peak = Math.abs(combined[i]);
   }
+  const rms = Math.sqrt(sumSq / combined.length);
+  const amplitude = Math.min(1, peak * 3); // normalized 0–1
 
-  // FFT for dominant frequency
-  const fftSize = 2048;
-  const freqData = new Uint8Array(analyser.frequencyBinCount);
-  analyser.getByteFrequencyData(freqData);
-  let maxBin = 0, maxVal = 0;
-  for (let i = 0; i < freqData.length; i++) {
-    if (freqData[i] > maxVal) { maxVal = freqData[i]; maxBin = i; }
+  // ——— Average FFT from snapshots taken DURING recording ———
+  const binCount = analyser.frequencyBinCount;
+  const avgFreq = new Float32Array(binCount);
+  if (freqLog.length > 0) {
+    for (const snap of freqLog) {
+      for (let i = 0; i < binCount; i++) avgFreq[i] += snap[i];
+    }
+    for (let i = 0; i < binCount; i++) avgFreq[i] /= freqLog.length;
   }
-  const dominantFreq = Math.round(maxBin * sampleRate / fftSize);
 
-  // Bandwidth (how many bins above threshold)
+  // Dominant frequency from averaged FFT
+  // Focus on fart-relevant range: 50–2000 Hz
+  const fftSize = analyser.fftSize;
+  const minBin = Math.floor(50 * fftSize / sampleRate);
+  const maxBin = Math.floor(2000 * fftSize / sampleRate);
+  let peakBin = minBin, peakVal = 0;
+  for (let i = minBin; i < Math.min(maxBin, binCount); i++) {
+    if (avgFreq[i] > peakVal) { peakVal = avgFreq[i]; peakBin = i; }
+  }
+  const dominantFreq = Math.round(peakBin * sampleRate / fftSize);
+
+  // Energy in frequency bands
+  const lowEnd = Math.floor(300 * fftSize / sampleRate);
+  const midEnd = Math.floor(800 * fftSize / sampleRate);
+  const hiEnd  = Math.floor(2000 * fftSize / sampleRate);
+  let lowEnergy = 0, midEnergy = 0, hiEnergy = 0, totalEnergy = 0;
+  for (let i = minBin; i < hiEnd && i < binCount; i++) {
+    const e = avgFreq[i] ** 2;
+    totalEnergy += e;
+    if (i < lowEnd) lowEnergy += e;
+    else if (i < midEnd) midEnergy += e;
+    else hiEnergy += e;
+  }
+  const lowRatio = totalEnergy > 0 ? lowEnergy / totalEnergy : 0;
+  const hiRatio  = totalEnergy > 0 ? hiEnergy  / totalEnergy : 0;
+
+  // Bandwidth: how spread the spectrum is
+  const threshold = peakVal * 0.25;
   let activeBins = 0;
-  const threshold = maxVal * 0.3;
-  for (let i = 0; i < freqData.length; i++) {
-    if (freqData[i] > threshold) activeBins++;
+  for (let i = minBin; i < hiEnd && i < binCount; i++) {
+    if (avgFreq[i] > threshold) activeBins++;
   }
   const bandwidth = activeBins * sampleRate / fftSize;
 
-  // Irregularity: amplitude variance
-  const mean = rms;
-  let varSum = 0;
-  const step = Math.floor(combined.length / 200);
-  for (let i = 0; i < 200; i++) {
-    const val = Math.abs(combined[i * step]);
-    varSum += (val - mean) ** 2;
+  // Amplitude envelope irregularity (choppiness)
+  const windowSize = Math.floor(sampleRate * 0.05); // 50ms windows
+  const windows = Math.floor(combined.length / windowSize);
+  const envVals = [];
+  for (let w = 0; w < windows; w++) {
+    let wSum = 0;
+    for (let i = 0; i < windowSize; i++) wSum += combined[w * windowSize + i] ** 2;
+    envVals.push(Math.sqrt(wSum / windowSize));
   }
-  const irregularity = Math.min(1, Math.sqrt(varSum / 200) / (mean + 0.001));
+  const envMean = envVals.reduce((a,b)=>a+b,0) / (envVals.length || 1);
+  const envVar = envVals.reduce((a,v)=>a+(v-envMean)**2,0) / (envVals.length || 1);
+  const irregularity = Math.min(1, Math.sqrt(envVar) / (envMean + 0.001));
 
-  // Burstiness: zero-crossing rate segments
-  let crossings = 0;
-  for (let i = 1; i < combined.length; i++) {
-    if ((combined[i] > 0) !== (combined[i-1] > 0)) crossings++;
-  }
-  const burstiness = Math.min(1, (crossings / combined.length) * sampleRate / 1000);
+  // Burstiness: count amplitude spikes vs quieter moments
+  const spikeThreshold = envMean * 1.5;
+  let spikes = 0;
+  for (const v of envVals) if (v > spikeThreshold) spikes++;
+  const burstiness = Math.min(1, spikes / (envVals.length || 1));
 
-  // Normalize amplitude to 0–1 based on peak
-  const amplitude = Math.min(1, peak * 2);
+  const features = { amplitude, rms, duration, dominantFreq, bandwidth, irregularity, burstiness, lowRatio, hiRatio };
 
-  const features = { amplitude, rms, duration, dominantFreq, bandwidth, irregularity, burstiness };
+  // ——— CLASSIFY with priority scoring ———
+  // Score each category and pick the best match
+  const scores = CATEGORIES.map(cat => ({
+    cat,
+    score: cat.score(features)
+  }));
+  scores.sort((a,b) => b.score - a.score);
+  const match = scores[0].score > 0 ? scores[0].cat : CATEGORIES[CATEGORIES.length - 1];
 
-  // Classify
-  let match = null;
-  for (const cat of CATEGORIES) {
-    if (cat.test(features)) { match = cat; break; }
-  }
-  if (!match) match = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)]; // fallback = random category for fun
+  // Confidence based on how much better the top match is vs second
+  const gap = scores[0].score - (scores[1]?.score || 0);
+  const confidence = Math.min(97, Math.round(60 + gap * 30 + Math.random() * 8));
 
-  const confidence = Math.round(55 + Math.random() * 40);
   const peakDb = Math.round(20 * Math.log10(Math.max(peak, 0.0001)));
 
   showResult(match, confidence, features, peakDb);
   addToHistory(match, confidence, duration);
   updateMetrics(duration, peakDb, dominantFreq);
-  updateFreqChart(freqData);
+  updateFreqChart(avgFreq);
 
   dataLog = [];
+  freqLog = [];
 }
 
 function showResult(cat, confidence, features, peakDb) {
@@ -827,11 +908,12 @@ function updateMetrics(dur, db, freq) {
 
 function updateFreqChart(freqData) {
   const bars = document.getElementById('freqChart').children;
-  const step = Math.floor(freqData.length / 8 * 0.5); // focus on low-mid
+  const maxVal = Math.max(...freqData.slice(0, freqData.length / 2));
+  const step = Math.floor(freqData.length / 16); // low-mid focus
   for (let i = 0; i < 8; i++) {
     let sum = 0;
     for (let j = 0; j < step; j++) sum += freqData[i * step + j];
-    const h = Math.max(5, (sum / (step * 255)) * 100);
+    const h = maxVal > 0 ? Math.max(5, (sum / (step * maxVal)) * 100) : 5;
     bars[i].style.height = h + '%';
     bars[i].classList.toggle('active', h > 30);
   }
@@ -868,6 +950,7 @@ async function startRecord() {
   isRecording = true;
   recordStart = Date.now();
   dataLog = [];
+  freqLog = [];
   btn.classList.add('recording');
   statusDot.classList.add('active');
   statusText.textContent = 'RECORDING';
