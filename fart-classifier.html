@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FartIQ™ — Advanced Flatulence Analysis System</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --panel: #111;
+    --border: #222;
+    --accent: #c8f53a;
+    --accent2: #ff6b35;
+    --text: #e8e8e8;
+    --muted: #555;
+    --danger: #ff3a3a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--panel);
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    color: var(--accent);
+    letter-spacing: 3px;
+    line-height: 1;
+  }
+
+  .tagline {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    line-height: 1.6;
+  }
+
+  .version {
+    margin-left: auto;
+    font-size: 0.6rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+  }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    height: calc(100vh - 65px);
+  }
+
+  .left-panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 32px;
+    gap: 24px;
+  }
+
+  .right-panel {
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* Visualizer */
+  .viz-container {
+    position: relative;
+    background: #050505;
+    border: 1px solid var(--border);
+    height: 180px;
+    overflow: hidden;
+  }
+
+  .viz-label {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    z-index: 1;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Big record button */
+  .record-section {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .record-btn {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .record-btn::before {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    transition: all 0.2s;
+  }
+
+  .record-btn.recording {
+    border-color: var(--danger);
+    animation: pulse-ring 1s infinite;
+  }
+
+  .record-btn.recording::before {
+    background: var(--danger);
+    border-radius: 4px;
+    inset: 22px;
+  }
+
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(255,58,58,0.4); }
+    70% { box-shadow: 0 0 0 20px rgba(255,58,58,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,58,58,0); }
+  }
+
+  .record-info h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  .record-info p {
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 6px;
+    line-height: 1.8;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    margin-right: 6px;
+  }
+  .status-dot.active { background: var(--danger); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Result display */
+  .result-card {
+    border: 1px solid var(--border);
+    background: #050505;
+    padding: 24px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.4s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .result-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 60%, rgba(200,245,58,0.03));
+    pointer-events: none;
+  }
+
+  .result-idle {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .result-emoji {
+    font-size: 4rem;
+    line-height: 1;
+    margin-bottom: 12px;
+    display: block;
+    animation: bounceIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  @keyframes bounceIn {
+    from { transform: scale(0) rotate(-20deg); opacity: 0; }
+    to { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  .result-category {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    letter-spacing: 4px;
+    color: var(--accent);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .result-desc {
+    font-size: 0.65rem;
+    color: #aaa;
+    line-height: 1.8;
+    margin-top: 8px;
+  }
+
+  .confidence-bar {
+    margin-top: 16px;
+  }
+
+  .confidence-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .bar-track {
+    height: 4px;
+    background: var(--border);
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  /* Metrics grid */
+  .metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+
+  .metric {
+    background: #050505;
+    padding: 12px 14px;
+  }
+
+  .metric-label {
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .metric-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+
+  .metric-unit {
+    font-size: 0.55rem;
+    color: var(--muted);
+    margin-left: 2px;
+  }
+
+  /* History panel */
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.6rem;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .clear-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.55rem;
+    padding: 3px 8px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+
+  .clear-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .history-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideIn 0.3s ease;
+    cursor: default;
+    transition: background 0.15s;
+  }
+
+  .history-item:hover { background: rgba(255,255,255,0.02); }
+
+  @keyframes slideIn {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  .history-emoji { font-size: 1.4rem; flex-shrink: 0; }
+
+  .history-info { flex: 1; min-width: 0; }
+
+  .history-cat {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  .history-meta {
+    font-size: 0.55rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .history-conf {
+    font-size: 0.65rem;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .empty-history {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    line-height: 2.5;
+  }
+
+  /* Stats footer */
+  .stats-footer {
+    border-top: 1px solid var(--border);
+    padding: 16px 20px;
+  }
+
+  .stats-title {
+    font-size: 0.55rem;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    color: #888;
+    margin-bottom: 4px;
+  }
+
+  .stat-val { color: var(--text); }
+
+  .freq-chart {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    height: 40px;
+    margin-top: 10px;
+  }
+
+  .freq-bar {
+    flex: 1;
+    background: var(--muted);
+    transition: height 0.3s, background 0.3s;
+    min-height: 2px;
+  }
+
+  .freq-bar.active { background: var(--accent); }
+
+  /* Permission error */
+  .error-msg {
+    background: rgba(255,58,58,0.1);
+    border: 1px solid var(--danger);
+    padding: 12px 16px;
+    font-size: 0.65rem;
+    color: var(--danger);
+    line-height: 1.8;
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    .right-panel { height: 400px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">FartIQ™</div>
+    <div class="tagline">Advanced Flatulence Analysis System<br>by GasLab Industries</div>
+  </div>
+  <div class="version">v2.1.0 — PRO</div>
+</header>
+
+<main>
+  <div class="left-panel">
+
+    <div class="viz-container">
+      <div class="viz-label">WAVEFORM / SPECTROGRAM</div>
+      <canvas id="vizCanvas"></canvas>
+    </div>
+
+    <div class="record-section">
+      <button class="record-btn" id="recordBtn" title="Hold to record"></button>
+      <div class="record-info">
+        <h2><span class="status-dot" id="statusDot"></span><span id="statusText">READY</span></h2>
+        <p>
+          Press & hold to capture<br>
+          Release to analyze<br>
+          Best at close range (0.5–1m)
+        </p>
+      </div>
+    </div>
+
+    <div class="error-msg" id="errorMsg">
+      ⚠ Microphone access denied. Please allow microphone permissions and reload.
+    </div>
+
+    <div class="result-card" id="resultCard">
+      <div class="result-idle" id="idleMsg">
+        [ AWAITING SAMPLE ]<br><br>
+        Press and hold record button<br>
+        to begin flatulence analysis
+      </div>
+      <div id="resultContent" style="display:none;">
+        <span class="result-emoji" id="resultEmoji"></span>
+        <div class="result-category" id="resultCategory"></div>
+        <div class="result-desc" id="resultDesc"></div>
+        <div class="confidence-bar">
+          <div class="confidence-label">
+            <span>CONFIDENCE</span>
+            <span id="confPct">0%</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" id="confBar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">Duration</div>
+        <div class="metric-value" id="mDuration">—<span class="metric-unit">s</span></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Peak dB</div>
+        <div class="metric-value" id="mDb">—<span class="metric-unit">dB</span></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Dom. Freq</div>
+        <div class="metric-value" id="mFreq">—<span class="metric-unit">Hz</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="right-panel">
+    <div class="panel-header">
+      <span>ANALYSIS LOG</span>
+      <button class="clear-btn" onclick="clearHistory()">CLEAR</button>
+    </div>
+
+    <div class="history-list" id="historyList">
+      <div class="empty-history" id="emptyHistory">
+        NO SAMPLES RECORDED<br>
+        ——<br>
+        BEGIN ANALYSIS TO<br>POPULATE LOG
+      </div>
+    </div>
+
+    <div class="stats-footer">
+      <div class="stats-title">SESSION STATISTICS</div>
+      <div class="stat-row"><span>Total analyzed</span><span class="stat-val" id="statTotal">0</span></div>
+      <div class="stat-row"><span>Avg confidence</span><span class="stat-val" id="statAvgConf">—</span></div>
+      <div class="stat-row"><span>Most common</span><span class="stat-val" id="statCommon">—</span></div>
+      <div class="freq-chart" id="freqChart">
+        <!-- 8 bars for frequency distribution viz -->
+        <div class="freq-bar" style="height:5%"></div>
+        <div class="freq-bar" style="height:5%"></div>
+        <div class="freq-bar" style="height:5%"></div>
+        <div class="freq-bar" style="height:5%"></div>
+        <div class="freq-bar" style="height:5%"></div>
+        <div class="freq-bar" style="height:5%"></div>
+        <div class="freq-bar" style="height:5%"></div>
+        <div class="freq-bar" style="height:5%"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ——— FART CATEGORIES ———
+const CATEGORIES = [
+  {
+    name: "THE RIPPER",
+    emoji: "💥",
+    desc: "High amplitude, broad spectrum. Short and explosive. A classic crowd-stopper.",
+    test: (f) => f.amplitude > 0.6 && f.duration < 1.2 && f.bandwidth > 400,
+  },
+  {
+    name: "THE SQUEAKER",
+    emoji: "🐭",
+    desc: "Dominant high frequencies. Pinched, sharp, and unmistakable. Usually precedes laughter.",
+    test: (f) => f.dominantFreq > 600 && f.duration < 0.8,
+  },
+  {
+    name: "THE RUMBLER",
+    emoji: "🌋",
+    desc: "Low frequency dominance, extended duration. Felt as much as heard. Rumbles the furniture.",
+    test: (f) => f.dominantFreq < 250 && f.duration > 1.5,
+  },
+  {
+    name: "THE SILENT BUT DEADLY",
+    emoji: "💀",
+    desc: "Low amplitude, extended low-frequency emission. Stealthy. Devastating. No survivors.",
+    test: (f) => f.amplitude < 0.3 && f.dominantFreq < 300,
+  },
+  {
+    name: "THE WET ONE",
+    emoji: "💧",
+    desc: "Irregular amplitude envelope with broadband noise. The one that requires a follow-up assessment.",
+    test: (f) => f.irregularity > 0.6 && f.bandwidth > 300,
+  },
+  {
+    name: "THE MACHINE GUN",
+    emoji: "💨",
+    desc: "Staccato bursts detected. Rapid-fire emission pattern. Highly rhythmic and persistent.",
+    test: (f) => f.burstiness > 0.5 && f.duration > 1.0,
+  },
+  {
+    name: "THE PHANTOM",
+    emoji: "👻",
+    desc: "Barely registered on sensors. Near-inaudible. An existential mystery for all nearby parties.",
+    test: (f) => f.amplitude < 0.2,
+  },
+  {
+    name: "THE FOGHORN",
+    emoji: "🚢",
+    desc: "Low dominant frequency, very high amplitude. A warning to ships and small aircraft alike.",
+    test: (f) => f.amplitude > 0.7 && f.dominantFreq < 300,
+  },
+];
+
+const FALLBACK = {
+  name: "UNCLASSIFIED EMISSION",
+  emoji: "🔬",
+  desc: "Signal detected but pattern inconclusive. Recommend repeat analysis with closer proximity.",
+};
+
+// ——— STATE ———
+let audioCtx, analyser, mediaStream, source;
+let isRecording = false;
+let recordStart = 0;
+let dataLog = [];
+let history = [];
+let animFrame;
+let vizDataBuffer = new Float32Array(2048);
+
+// ——— AUDIO SETUP ———
+async function initAudio() {
+  if (audioCtx) return true;
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.5;
+    source = audioCtx.createMediaStreamSource(mediaStream);
+    source.connect(analyser);
+    startViz();
+    return true;
+  } catch(e) {
+    document.getElementById('errorMsg').style.display = 'block';
+    return false;
+  }
+}
+
+// ——— VISUALIZATION ———
+function startViz() {
+  const canvas = document.getElementById('vizCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function draw() {
+    animFrame = requestAnimationFrame(draw);
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const W = canvas.width, H = canvas.height;
+
+    const bufLen = analyser.frequencyBinCount;
+    const dataArr = new Uint8Array(bufLen);
+
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0, 0, W, H);
+
+    if (isRecording) {
+      // Waveform
+      analyser.getByteTimeDomainData(dataArr);
+      ctx.strokeStyle = '#c8f53a';
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#c8f53a';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      const sliceW = W / bufLen;
+      for (let i = 0; i < bufLen; i++) {
+        const v = dataArr[i] / 128;
+        const y = (v * H) / 2;
+        i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * sliceW, y);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Collect data for analysis
+      analyser.getFloatTimeDomainData(vizDataBuffer);
+      const chunk = new Float32Array(vizDataBuffer);
+      dataLog.push(chunk);
+    } else {
+      // Spectrum bars when idle
+      analyser.getByteFrequencyData(dataArr);
+      const barW = (W / 64) - 1;
+      for (let i = 0; i < 64; i++) {
+        const barH = (dataArr[i] / 255) * H * 0.8;
+        const hue = 80 + (i / 64) * 40;
+        ctx.fillStyle = `hsla(${hue}, 90%, 55%, 0.3)`;
+        ctx.fillRect(i * (barW + 1), H - barH, barW, barH);
+      }
+    }
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 0;
+    for (let y = 0; y < H; y += H/4) {
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    }
+  }
+  draw();
+}
+
+// ——— ANALYSIS ———
+function analyzeRecording() {
+  if (!dataLog.length) return;
+
+  // Flatten all recorded chunks
+  const totalSamples = dataLog.reduce((a, c) => a + c.length, 0);
+  const combined = new Float32Array(totalSamples);
+  let offset = 0;
+  for (const chunk of dataLog) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  const sampleRate = audioCtx.sampleRate;
+  const duration = totalSamples / sampleRate;
+
+  // RMS amplitude
+  let sumSq = 0;
+  for (let i = 0; i < combined.length; i++) sumSq += combined[i] ** 2;
+  const rms = Math.sqrt(sumSq / combined.length);
+
+  // Peak amplitude
+  let peak = 0;
+  for (let i = 0; i < combined.length; i++) {
+    if (Math.abs(combined[i]) > peak) peak = Math.abs(combined[i]);
+  }
+
+  // FFT for dominant frequency
+  const fftSize = 2048;
+  const freqData = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(freqData);
+  let maxBin = 0, maxVal = 0;
+  for (let i = 0; i < freqData.length; i++) {
+    if (freqData[i] > maxVal) { maxVal = freqData[i]; maxBin = i; }
+  }
+  const dominantFreq = Math.round(maxBin * sampleRate / fftSize);
+
+  // Bandwidth (how many bins above threshold)
+  let activeBins = 0;
+  const threshold = maxVal * 0.3;
+  for (let i = 0; i < freqData.length; i++) {
+    if (freqData[i] > threshold) activeBins++;
+  }
+  const bandwidth = activeBins * sampleRate / fftSize;
+
+  // Irregularity: amplitude variance
+  const mean = rms;
+  let varSum = 0;
+  const step = Math.floor(combined.length / 200);
+  for (let i = 0; i < 200; i++) {
+    const val = Math.abs(combined[i * step]);
+    varSum += (val - mean) ** 2;
+  }
+  const irregularity = Math.min(1, Math.sqrt(varSum / 200) / (mean + 0.001));
+
+  // Burstiness: zero-crossing rate segments
+  let crossings = 0;
+  for (let i = 1; i < combined.length; i++) {
+    if ((combined[i] > 0) !== (combined[i-1] > 0)) crossings++;
+  }
+  const burstiness = Math.min(1, (crossings / combined.length) * sampleRate / 1000);
+
+  // Normalize amplitude to 0–1 based on peak
+  const amplitude = Math.min(1, peak * 2);
+
+  const features = { amplitude, rms, duration, dominantFreq, bandwidth, irregularity, burstiness };
+
+  // Classify
+  let match = null;
+  for (const cat of CATEGORIES) {
+    if (cat.test(features)) { match = cat; break; }
+  }
+  if (!match) match = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)]; // fallback = random category for fun
+
+  const confidence = Math.round(55 + Math.random() * 40);
+  const peakDb = Math.round(20 * Math.log10(Math.max(peak, 0.0001)));
+
+  showResult(match, confidence, features, peakDb);
+  addToHistory(match, confidence, duration);
+  updateMetrics(duration, peakDb, dominantFreq);
+  updateFreqChart(freqData);
+
+  dataLog = [];
+}
+
+function showResult(cat, confidence, features, peakDb) {
+  document.getElementById('idleMsg').style.display = 'none';
+  const rc = document.getElementById('resultContent');
+  rc.style.display = 'block';
+  document.getElementById('resultEmoji').textContent = cat.emoji;
+  document.getElementById('resultCategory').textContent = cat.name;
+  document.getElementById('resultDesc').textContent = cat.desc;
+  document.getElementById('confPct').textContent = confidence + '%';
+  const bar = document.getElementById('confBar');
+  bar.style.width = '0%';
+  setTimeout(() => { bar.style.width = confidence + '%'; }, 50);
+}
+
+function addToHistory(cat, confidence, duration) {
+  history.unshift({ cat, confidence, duration, time: new Date() });
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('emptyHistory');
+  if (empty) empty.style.display = 'none';
+
+  const item = document.createElement('div');
+  item.className = 'history-item';
+  item.innerHTML = `
+    <div class="history-emoji">${cat.emoji}</div>
+    <div class="history-info">
+      <div class="history-cat">${cat.name}</div>
+      <div class="history-meta">${duration.toFixed(1)}s · ${new Date().toLocaleTimeString()}</div>
+    </div>
+    <div class="history-conf">${confidence}%</div>
+  `;
+  list.insertBefore(item, list.firstChild);
+  updateStats();
+}
+
+function updateMetrics(dur, db, freq) {
+  document.getElementById('mDuration').innerHTML = `${dur.toFixed(1)}<span class="metric-unit">s</span>`;
+  document.getElementById('mDb').innerHTML = `${db}<span class="metric-unit">dB</span>`;
+  document.getElementById('mFreq').innerHTML = `${freq}<span class="metric-unit">Hz</span>`;
+}
+
+function updateFreqChart(freqData) {
+  const bars = document.getElementById('freqChart').children;
+  const step = Math.floor(freqData.length / 8 * 0.5); // focus on low-mid
+  for (let i = 0; i < 8; i++) {
+    let sum = 0;
+    for (let j = 0; j < step; j++) sum += freqData[i * step + j];
+    const h = Math.max(5, (sum / (step * 255)) * 100);
+    bars[i].style.height = h + '%';
+    bars[i].classList.toggle('active', h > 30);
+  }
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = history.length;
+  const avgConf = Math.round(history.reduce((a,h)=>a+h.confidence,0)/history.length);
+  document.getElementById('statAvgConf').textContent = avgConf + '%';
+  const counts = {};
+  history.forEach(h => { counts[h.cat.name] = (counts[h.cat.name]||0)+1; });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('statCommon').textContent = top ? top[0].split(' ')[1] : '—';
+}
+
+function clearHistory() {
+  history = [];
+  document.getElementById('historyList').innerHTML = '<div class="empty-history" id="emptyHistory">NO SAMPLES RECORDED<br>——<br>BEGIN ANALYSIS TO<br>POPULATE LOG</div>';
+  updateStats();
+  document.getElementById('statTotal').textContent = '0';
+  document.getElementById('statAvgConf').textContent = '—';
+  document.getElementById('statCommon').textContent = '—';
+}
+
+// ——— RECORD BUTTON ———
+const btn = document.getElementById('recordBtn');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+
+async function startRecord() {
+  const ok = await initAudio();
+  if (!ok) return;
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+  isRecording = true;
+  recordStart = Date.now();
+  dataLog = [];
+  btn.classList.add('recording');
+  statusDot.classList.add('active');
+  statusText.textContent = 'RECORDING';
+}
+
+function stopRecord() {
+  if (!isRecording) return;
+  isRecording = false;
+  btn.classList.remove('recording');
+  statusDot.classList.remove('active');
+  statusText.textContent = 'ANALYZING...';
+  setTimeout(() => {
+    analyzeRecording();
+    statusText.textContent = 'COMPLETE';
+    setTimeout(() => statusText.textContent = 'READY', 2000);
+  }, 300);
+}
+
+btn.addEventListener('mousedown', startRecord);
+btn.addEventListener('mouseup', stopRecord);
+btn.addEventListener('touchstart', e => { e.preventDefault(); startRecord(); });
+btn.addEventListener('touchend', e => { e.preventDefault(); stopRecord(); });
+btn.addEventListener('mouseleave', () => { if (isRecording) stopRecord(); });
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => { if (e.code === 'Space' && !isRecording) { e.preventDefault(); startRecord(); } });
+document.addEventListener('keyup', e => { if (e.code === 'Space') { e.preventDefault(); stopRecord(); } });
+</script>
+</body>
+</html>
