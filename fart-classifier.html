@@ -104,7 +104,7 @@ canvas { width: 100%; height: 68px; display: block; }
 
 /* Debug */
 .debug-section { border-top: 1px solid var(--border); padding: 14px 40px; background: var(--off); flex-shrink: 0; display: none; }
-.debug-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 1px; }
+.debug-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 1px; }
 .debug-cell { background: var(--off); padding: 9px 11px; }
 .dc-label { font-size: 0.47rem; color: var(--muted); margin-bottom: 2px; letter-spacing: 0.08em; }
 .dc-val { font-size: 0.68rem; color: var(--ink); font-weight: 500; }
@@ -492,54 +492,83 @@ function analyzeRecording() {
   let off = 0;
   for (const c of dataLog) { combined.set(c, off); off += c.length; }
 
+  // ── AMBIENT BASELINE: use first 400ms as environment reference ──
+  // This cancels out car noise, AC hum, room tone — anything present before the fart
+  const ambientSamples = Math.min(Math.floor(sr * 0.4), Math.floor(combined.length * 0.3));
+  let ambSq = 0;
+  for (let i = 0; i < ambientSamples; i++) ambSq += combined[i]**2;
+  const ambientRms = Math.sqrt(ambSq / ambientSamples);
+
+  // Ambient FFT profile from first 400ms of freqLog snapshots
+  const binCount = analyser.frequencyBinCount;
+  const ambientFreq = new Float32Array(binCount);
+  const ambSnapCount = Math.max(1, Math.floor(freqLog.length * 0.25)); // first 25% of snapshots
+  for (let si = 0; si < ambSnapCount; si++) {
+    for (let i = 0; i < binCount; i++) ambientFreq[i] += freqLog[si][i];
+  }
+  for (let i = 0; i < binCount; i++) ambientFreq[i] /= ambSnapCount;
+
+  // ── SIGNAL: analyse everything AFTER the ambient window ──
+  const signalStart = ambientSamples;
   let sumSq = 0, peak = 0;
-  for (let i = 0; i < combined.length; i++) {
+  for (let i = signalStart; i < combined.length; i++) {
     sumSq += combined[i]**2;
     if (Math.abs(combined[i]) > peak) peak = Math.abs(combined[i]);
   }
-  const rms = Math.sqrt(sumSq / combined.length);
-  const amplitude = Math.min(1, peak * 3);
+  const signalLen = combined.length - signalStart;
+  const rms = Math.sqrt(sumSq / signalLen);
+  // Amplitude relative to ambient — how much louder than background?
+  const relativeAmplitude = ambientRms > 0 ? Math.min(1, (rms / ambientRms - 1) / 3) : Math.min(1, peak * 3);
+  const amplitude = Math.max(0, relativeAmplitude);
   const loudnessDb = Math.round(20 * Math.log10(Math.max(rms, 1e-7)));
   const peakDb = Math.round(20 * Math.log10(Math.max(peak, 1e-7)));
 
-  // Fart duration: 20th percentile baseline, require 8x above quiet to count as signal
+  // ── FART DURATION: signal windows relative to ambient RMS ──
   const winSz = Math.floor(sr * 0.05);
-  const nWins = Math.floor(combined.length / winSz);
+  const nWins = Math.floor(signalLen / winSz);
   const winRms = [];
   for (let w = 0; w < nWins; w++) {
     let sq = 0;
-    for (let i = 0; i < winSz; i++) sq += combined[w*winSz+i]**2;
+    const base = signalStart + w * winSz;
+    for (let i = 0; i < winSz; i++) sq += combined[base+i]**2;
     winRms.push(Math.sqrt(sq/winSz));
   }
-  const sorted = [...winRms].sort((a,b)=>a-b);
-  const quietBaseline = sorted[Math.floor(sorted.length * 0.2)] || 0;
-  const floor = Math.max(quietBaseline * 8, 0.008);
+  // Floor is ambient RMS * 3 — anything less than 3x background is not a fart
+  const floor = Math.max(ambientRms * 3, 0.005);
   let fs = -1, fe = -1;
   for (let w = 0; w < nWins; w++) {
     if (winRms[w] > floor) { if (fs===-1) fs=w; fe=w; }
   }
   const fartDuration = fs===-1 ? 0 : ((fe-fs+1)*winSz)/sr;
 
-  // Average FFT
-  const binCount = analyser.frequencyBinCount;
+  // ── FFT: subtract ambient profile from signal FFT ──
+  // Average the second half of freqLog (after ambient window)
+  const sigSnapStart = ambSnapCount;
   const avgFreq = new Float32Array(binCount);
-  if (freqLog.length > 0) {
-    for (const s of freqLog) for (let i=0;i<binCount;i++) avgFreq[i]+=s[i];
-    for (let i=0;i<binCount;i++) avgFreq[i]/=freqLog.length;
+  const sigSnapCount = freqLog.length - sigSnapStart;
+  if (sigSnapCount > 0) {
+    for (let si = sigSnapStart; si < freqLog.length; si++) {
+      for (let i = 0; i < binCount; i++) avgFreq[i] += freqLog[si][i];
+    }
+    for (let i = 0; i < binCount; i++) {
+      avgFreq[i] = avgFreq[i] / sigSnapCount;
+      // Subtract ambient — keep only what CHANGED vs background
+      avgFreq[i] = Math.max(0, avgFreq[i] - ambientFreq[i] * 0.85);
+    }
   }
 
   const fftSz = analyser.fftSize;
-  const minB = Math.ceil(160*fftSz/sr); // match HPF cutoff
-  const maxB = Math.floor(3000*fftSz/sr);
+  const minB = Math.ceil(160*fftSz/sr);
+  const maxB = Math.floor(4000*fftSz/sr);
   let pkBin = minB, pkVal = 0;
   for (let i=minB; i<Math.min(maxB,binCount); i++) {
     if (avgFreq[i]>pkVal) { pkVal=avgFreq[i]; pkBin=i; }
   }
   const dominantFreq = Math.round(pkBin*sr/fftSz);
 
-  const lE = Math.floor(400*fftSz/sr);  // low: 160-400Hz
-  const mE = Math.floor(1000*fftSz/sr); // mid: 400-1000Hz
-  const hE = Math.floor(4000*fftSz/sr); // hi: 1000-4000Hz
+  const lE = Math.floor(400*fftSz/sr);
+  const mE = Math.floor(1000*fftSz/sr);
+  const hE = Math.floor(4000*fftSz/sr);
   let lowE=0,midE=0,hiE=0,totE=0;
   for (let i=minB; i<Math.min(hE,binCount); i++) {
     const e=avgFreq[i]**2; totE+=e;
@@ -554,14 +583,19 @@ function analyzeRecording() {
   for (let i=minB;i<Math.min(hE,binCount);i++) if(avgFreq[i]>thr) actBins++;
   const bandwidth = actBins*sr/fftSz;
 
+  // Irregularity relative to ambient — only count variance ABOVE background noise level
   const envMean = winRms.reduce((a,b)=>a+b,0)/(winRms.length||1);
   const envVar = winRms.reduce((a,v)=>a+(v-envMean)**2,0)/(winRms.length||1);
-  const irregularity = Math.min(1, Math.sqrt(envVar)/(envMean+0.001));
-  const spikeTh = envMean*1.6;
+  const rawIrregularity = Math.sqrt(envVar)/(envMean+0.001);
+  // Normalise: ambient noise itself has some irregularity, subtract that
+  const ambIrregularity = ambientRms * 0.3;
+  const irregularity = Math.min(1, Math.max(0, rawIrregularity - ambIrregularity));
+
+  const spikeTh = Math.max(envMean * 1.6, floor * 1.2);
   const spikes = winRms.filter(v=>v>spikeTh).length;
   const burstiness = Math.min(1, spikes/(winRms.length||1));
 
-  const f = { amplitude, rms, fartDuration, dominantFreq, bandwidth, irregularity, burstiness, lowRatio, midRatio, hiRatio, loudnessDb, peakDb };
+  const f = { amplitude, rms, fartDuration, dominantFreq, bandwidth, irregularity, burstiness, lowRatio, midRatio, hiRatio, loudnessDb, peakDb, ambientRms };
 
   const scores = CATEGORIES.map(cat=>({cat, score:cat.score(f)}));
   scores.sort((a,b)=>b.score-a.score);
@@ -620,6 +654,7 @@ function showResult(cat, conf, f, ratings, scores) {
     ['lowRatio',(f.lowRatio*100).toFixed(0)+'%'],['midRatio',(f.midRatio*100).toFixed(0)+'%'],
     ['hiRatio',(f.hiRatio*100).toFixed(0)+'%'],['fartDur',f.fartDuration.toFixed(2)+'s'],
     ['irregular',f.irregularity.toFixed(3)],['burstiness',f.burstiness.toFixed(3)],
+    ['ambientRms',f.ambientRms.toFixed(4)],['snr', f.ambientRms>0?(f.rms/f.ambientRms).toFixed(1)+'x':'—'],
   ].map(([l,v])=>`<div class="debug-cell"><div class="dc-label">${l}</div><div class="dc-val">${v}</div></div>`).join('');
   document.getElementById('scoreTable').innerHTML=scores.map((s,i)=>`
     <div class="score-row ${i===0?'top':''}">
