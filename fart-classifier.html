@@ -3,674 +3,387 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FartIQ™ — Advanced Flatulence Analysis System</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<title>FartIQ — Flatulence Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #0a0a0a;
-    --panel: #111;
-    --border: #222;
-    --accent: #c8f53a;
-    --accent2: #ff6b35;
-    --text: #e8e8e8;
-    --muted: #555;
-    --danger: #ff3a3a;
-  }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --white: #FAFAF8;
+  --off: #F2F1EE;
+  --border: #E0DED9;
+  --mid: #C8C5BF;
+  --muted: #9B9790;
+  --dark: #1C1B19;
+  --ink: #2E2D2B;
+  --green: #2D6A4F;
+  --red: #C0392B;
+  --amber: #D4820A;
+}
+html, body { height: 100%; background: var(--white); color: var(--ink); font-family: 'DM Mono', monospace; -webkit-font-smoothing: antialiased; }
+.app { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+/* HEADER */
+header { border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 64px; background: var(--white); }
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand-name { font-family: 'DM Serif Display', serif; font-size: 1.5rem; color: var(--dark); letter-spacing: -0.5px; }
+.brand-sub { font-size: 0.6rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+.header-meta { display: flex; align-items: center; gap: 20px; }
+.version-tag { font-size: 0.6rem; letter-spacing: 0.1em; color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; }
+.status-indicator { display: flex; align-items: center; gap: 7px; font-size: 0.6rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mid); transition: background 0.3s; }
+.status-dot.ready { background: var(--green); }
+.status-dot.recording { background: var(--red); animation: blink 0.8s infinite; }
+.status-dot.analyzing { background: var(--amber); animation: blink 0.4s infinite; }
+@keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.2; } }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'IBM Plex Mono', monospace;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+/* MAIN */
+main { display: grid; grid-template-columns: 1fr 360px; height: calc(100vh - 112px); overflow: hidden; }
 
-  /* Scanline overlay */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
-    pointer-events: none;
-    z-index: 9999;
-  }
+/* LEFT */
+.left { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
 
-  header {
-    border-bottom: 1px solid var(--border);
-    padding: 16px 32px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    background: var(--panel);
-  }
+/* Record zone */
+.record-zone { border-bottom: 1px solid var(--border); padding: 44px 40px; display: flex; align-items: center; gap: 44px; flex-shrink: 0; }
+.record-btn-wrap { flex-shrink: 0; position: relative; }
+.record-btn { width: 96px; height: 96px; border-radius: 50%; border: 1.5px solid var(--dark); background: var(--white); cursor: pointer; position: relative; transition: all 0.2s; -webkit-tap-highlight-color: transparent; }
+.record-btn::before { content: ''; position: absolute; inset: 11px; border-radius: 50%; background: var(--dark); transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1); }
+.record-btn.recording { border-color: var(--red); }
+.record-btn.recording::before { background: var(--red); border-radius: 5px; inset: 27px; }
+.record-btn:active { transform: scale(0.95); }
+.record-ring { position: absolute; inset: -10px; border-radius: 50%; border: 1px solid var(--border); opacity: 0; pointer-events: none; }
+.record-ring.active { opacity: 1; animation: ring-expand 1.2s ease-out infinite; }
+@keyframes ring-expand { 0% { transform:scale(1); opacity:0.5; } 100% { transform:scale(1.5); opacity:0; } }
+.record-label h2 { font-family: 'DM Serif Display', serif; font-size: 1.75rem; color: var(--dark); letter-spacing: -0.5px; line-height: 1.15; margin-bottom: 10px; }
+.record-label p { font-size: 0.63rem; color: var(--muted); letter-spacing: 0.04em; line-height: 2; }
+.record-label .hint { margin-top: 12px; font-size: 0.57rem; color: var(--mid); letter-spacing: 0.1em; text-transform: uppercase; }
 
-  .logo {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2.2rem;
-    color: var(--accent);
-    letter-spacing: 3px;
-    line-height: 1;
-  }
+/* Waveform */
+.waveform-section { padding: 20px 40px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.section-label { font-size: 0.52rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+canvas { width: 100%; height: 68px; display: block; }
 
-  .tagline {
-    font-size: 0.65rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    line-height: 1.6;
-  }
+/* Error */
+.error-banner { background: #FEF3F2; border: 1px solid #FECDCA; color: var(--red); padding: 10px 40px; font-size: 0.62rem; letter-spacing: 0.04em; display: none; flex-shrink: 0; }
 
-  .version {
-    margin-left: auto;
-    font-size: 0.6rem;
-    color: var(--muted);
-    border: 1px solid var(--border);
-    padding: 4px 8px;
-  }
+/* Result */
+.result-section { flex: 1; padding: 36px 40px; }
+.result-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--mid); }
+.result-empty-glyph { font-family: 'DM Serif Display', serif; font-size: 3rem; color: var(--border); line-height: 1; }
+.result-empty p { font-size: 0.57rem; letter-spacing: 0.2em; text-transform: uppercase; }
+.result-card { display: none; }
+.result-card.visible { display: block; }
 
-  main {
-    display: grid;
-    grid-template-columns: 1fr 340px;
-    gap: 0;
-    height: calc(100vh - 65px);
-  }
+/* Result header */
+.result-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding-bottom: 28px; border-bottom: 1px solid var(--border); margin-bottom: 28px; }
+.result-left { flex: 1; }
+.result-emoji { font-size: 2.8rem; line-height: 1; margin-bottom: 10px; animation: pop-in 0.45s cubic-bezier(0.34,1.56,0.64,1); display: block; }
+@keyframes pop-in { from { transform:scale(0.3) rotate(-10deg); opacity:0; } to { transform:scale(1) rotate(0deg); opacity:1; } }
+.result-name { font-family: 'DM Serif Display', serif; font-size: 2.2rem; color: var(--dark); letter-spacing: -0.8px; line-height: 1.05; margin-bottom: 10px; animation: fade-up 0.4s ease; }
+@keyframes fade-up { from { transform:translateY(8px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+.result-desc { font-size: 0.67rem; color: var(--muted); line-height: 1.85; max-width: 380px; }
+.confidence-block { text-align: right; flex-shrink: 0; }
+.conf-pct { font-family: 'DM Serif Display', serif; font-size: 3rem; color: var(--dark); line-height: 1; letter-spacing: -2px; }
+.conf-sub { font-size: 0.52rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.conf-track { width: 72px; height: 2px; background: var(--border); margin: 8px 0 0 auto; overflow: hidden; }
+.conf-fill { height: 100%; background: var(--dark); transition: width 0.9s cubic-bezier(0.34,1.56,0.64,1); }
 
-  .left-panel {
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    padding: 32px;
-    gap: 24px;
-  }
+/* Metrics */
+.metrics-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 24px; }
+.metric-cell { background: var(--white); padding: 16px 16px; }
+.mc-label { font-size: 0.48rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.mc-val { font-family: 'DM Serif Display', serif; font-size: 1.5rem; color: var(--dark); letter-spacing: -0.3px; line-height: 1; }
+.mc-unit { font-family: 'DM Mono'; font-size: 0.58rem; color: var(--muted); margin-left: 2px; }
 
-  .right-panel {
-    background: var(--panel);
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-  }
+/* Ratings */
+.ratings { display: flex; flex-direction: column; gap: 11px; margin-bottom: 0; }
+.rating-row { display: flex; align-items: center; gap: 14px; }
+.rating-name { font-size: 0.55rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); width: 78px; flex-shrink: 0; }
+.rating-track { flex: 1; height: 2px; background: var(--off); position: relative; overflow: hidden; }
+.rating-fill { position: absolute; left:0; top:0; height:100%; background: var(--dark); transition: width 1s cubic-bezier(0.34,1.56,0.64,1); }
+.rating-val { font-size: 0.58rem; color: var(--ink); width: 28px; text-align: right; flex-shrink: 0; }
 
-  /* Visualizer */
-  .viz-container {
-    position: relative;
-    background: #050505;
-    border: 1px solid var(--border);
-    height: 180px;
-    overflow: hidden;
-  }
+/* Debug */
+.debug-section { border-top: 1px solid var(--border); padding: 14px 40px; background: var(--off); flex-shrink: 0; display: none; }
+.debug-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 1px; }
+.debug-cell { background: var(--off); padding: 9px 11px; }
+.dc-label { font-size: 0.47rem; color: var(--muted); margin-bottom: 2px; letter-spacing: 0.08em; }
+.dc-val { font-size: 0.68rem; color: var(--ink); font-weight: 500; }
+.score-table { display: flex; flex-direction: column; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-top: 1px; }
+.score-row { background: var(--off); padding: 6px 11px; display: flex; justify-content: space-between; align-items: center; font-size: 0.57rem; color: var(--muted); }
+.score-row.top { background: var(--white); color: var(--ink); font-weight: 500; }
+.score-num { font-family: 'DM Serif Display', serif; font-size: 0.95rem; color: var(--mid); }
+.score-row.top .score-num { color: var(--dark); }
 
-  .viz-label {
-    position: absolute;
-    top: 8px;
-    left: 12px;
-    font-size: 0.6rem;
-    color: var(--muted);
-    letter-spacing: 2px;
-    z-index: 1;
-  }
+/* RIGHT */
+.right { display: flex; flex-direction: column; background: var(--off); overflow: hidden; }
+.panel-header { border-bottom: 1px solid var(--border); padding: 0 22px; height: 48px; display: flex; align-items: center; justify-content: space-between; background: var(--white); flex-shrink: 0; }
+.panel-title { font-size: 0.52rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.clear-btn { font-size: 0.52rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border); padding: 4px 9px; cursor: pointer; font-family: 'DM Mono', monospace; transition: all 0.15s; }
+.clear-btn:hover { border-color: var(--red); color: var(--red); }
+.history-list { flex: 1; overflow-y: auto; }
+.history-empty { padding: 60px 22px; text-align: center; color: var(--mid); font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; line-height: 2.8; }
+.history-item { border-bottom: 1px solid var(--border); padding: 13px 22px; display: flex; align-items: center; gap: 12px; background: var(--white); transition: background 0.1s; animation: slide-right 0.3s ease; }
+@keyframes slide-right { from { transform:translateX(12px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+.history-item:hover { background: var(--off); }
+.h-emoji { font-size: 1.3rem; flex-shrink: 0; }
+.h-info { flex: 1; min-width: 0; }
+.h-name { font-family: 'DM Serif Display', serif; font-size: 0.88rem; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.h-meta { font-size: 0.5rem; color: var(--muted); letter-spacing: 0.04em; margin-top: 2px; }
+.h-conf { font-family: 'DM Serif Display', serif; font-size: 1.15rem; color: var(--dark); flex-shrink: 0; }
 
-  canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
+/* Session stats */
+.session-stats { border-top: 1px solid var(--border); padding: 18px 22px; background: var(--white); flex-shrink: 0; }
+.session-title { font-size: 0.48rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.session-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ss-label { font-size: 0.48rem; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 2px; }
+.ss-val { font-family: 'DM Serif Display', serif; font-size: 1.35rem; color: var(--dark); letter-spacing: -0.3px; }
 
-  /* Big record button */
-  .record-section {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-  }
+/* FOOTER */
+footer { height: 48px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; background: var(--white); flex-shrink: 0; }
+.footer-text { font-size: 0.52rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
 
-  .record-btn {
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    border: 3px solid var(--accent);
-    background: transparent;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s;
-    flex-shrink: 0;
-  }
-
-  .record-btn::before {
-    content: '';
-    position: absolute;
-    inset: 8px;
-    border-radius: 50%;
-    background: var(--accent);
-    transition: all 0.2s;
-  }
-
-  .record-btn.recording {
-    border-color: var(--danger);
-    animation: pulse-ring 1s infinite;
-  }
-
-  .record-btn.recording::before {
-    background: var(--danger);
-    border-radius: 4px;
-    inset: 22px;
-  }
-
-  @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 rgba(255,58,58,0.4); }
-    70% { box-shadow: 0 0 0 20px rgba(255,58,58,0); }
-    100% { box-shadow: 0 0 0 0 rgba(255,58,58,0); }
-  }
-
-  .record-info h2 {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.4rem;
-    letter-spacing: 2px;
-    color: var(--text);
-  }
-
-  .record-info p {
-    font-size: 0.65rem;
-    color: var(--muted);
-    margin-top: 6px;
-    line-height: 1.8;
-  }
-
-  .status-dot {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--muted);
-    margin-right: 6px;
-  }
-  .status-dot.active { background: var(--danger); animation: blink 1s infinite; }
-  @keyframes blink { 50% { opacity: 0; } }
-
-  /* Result display */
-  .result-card {
-    border: 1px solid var(--border);
-    background: #050505;
-    padding: 24px;
-    min-height: 200px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    transition: all 0.4s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .result-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, transparent 60%, rgba(200,245,58,0.03));
-    pointer-events: none;
-  }
-
-  .result-idle {
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.7rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-
-  .result-emoji {
-    font-size: 4rem;
-    line-height: 1;
-    margin-bottom: 12px;
-    display: block;
-    animation: bounceIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
-  }
-
-  @keyframes bounceIn {
-    from { transform: scale(0) rotate(-20deg); opacity: 0; }
-    to { transform: scale(1) rotate(0deg); opacity: 1; }
-  }
-
-  .result-category {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2.2rem;
-    letter-spacing: 4px;
-    color: var(--accent);
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-
-  .result-desc {
-    font-size: 0.65rem;
-    color: #aaa;
-    line-height: 1.8;
-    margin-top: 8px;
-  }
-
-  .confidence-bar {
-    margin-top: 16px;
-  }
-
-  .confidence-label {
-    font-size: 0.6rem;
-    color: var(--muted);
-    letter-spacing: 2px;
-    margin-bottom: 6px;
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .bar-track {
-    height: 4px;
-    background: var(--border);
-    overflow: hidden;
-  }
-
-  .bar-fill {
-    height: 100%;
-    background: var(--accent);
-    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
-  }
-
-  /* Metrics grid */
-  .metrics {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-  }
-
-  .metric {
-    background: #050505;
-    padding: 12px 14px;
-  }
-
-  .metric-label {
-    font-size: 0.55rem;
-    color: var(--muted);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-
-  .metric-value {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.5rem;
-    color: var(--accent);
-    letter-spacing: 2px;
-  }
-
-  .metric-unit {
-    font-size: 0.55rem;
-    color: var(--muted);
-    margin-left: 2px;
-  }
-
-  /* History panel */
-  .panel-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.6rem;
-    letter-spacing: 3px;
-    color: var(--muted);
-    text-transform: uppercase;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .clear-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.55rem;
-    padding: 3px 8px;
-    cursor: pointer;
-    letter-spacing: 1px;
-    transition: all 0.2s;
-  }
-
-  .clear-btn:hover { border-color: var(--accent2); color: var(--accent2); }
-
-  .history-list {
-    flex: 1;
-    overflow-y: auto;
-  }
-
-  .history-item {
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    animation: slideIn 0.3s ease;
-    cursor: default;
-    transition: background 0.15s;
-  }
-
-  .history-item:hover { background: rgba(255,255,255,0.02); }
-
-  @keyframes slideIn {
-    from { transform: translateX(20px); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-
-  .history-emoji { font-size: 1.4rem; flex-shrink: 0; }
-
-  .history-info { flex: 1; min-width: 0; }
-
-  .history-cat {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 0.9rem;
-    letter-spacing: 2px;
-    color: var(--text);
-  }
-
-  .history-meta {
-    font-size: 0.55rem;
-    color: var(--muted);
-    margin-top: 2px;
-  }
-
-  .history-conf {
-    font-size: 0.65rem;
-    color: var(--accent);
-    font-weight: 700;
-  }
-
-  .empty-history {
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.6rem;
-    letter-spacing: 2px;
-    line-height: 2.5;
-  }
-
-  /* Stats footer */
-  .stats-footer {
-    border-top: 1px solid var(--border);
-    padding: 16px 20px;
-  }
-
-  .stats-title {
-    font-size: 0.55rem;
-    letter-spacing: 2px;
-    color: var(--muted);
-    margin-bottom: 10px;
-    text-transform: uppercase;
-  }
-
-  .stat-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.6rem;
-    color: #888;
-    margin-bottom: 4px;
-  }
-
-  .stat-val { color: var(--text); }
-
-  .freq-chart {
-    display: flex;
-    gap: 3px;
-    align-items: flex-end;
-    height: 40px;
-    margin-top: 10px;
-  }
-
-  .freq-bar {
-    flex: 1;
-    background: var(--muted);
-    transition: height 0.3s, background 0.3s;
-    min-height: 2px;
-  }
-
-  .freq-bar.active { background: var(--accent); }
-
-  /* Permission error */
-  .error-msg {
-    background: rgba(255,58,58,0.1);
-    border: 1px solid var(--danger);
-    padding: 12px 16px;
-    font-size: 0.65rem;
-    color: var(--danger);
-    line-height: 1.8;
-    display: none;
-  }
-
-  @media (max-width: 768px) {
-    main { grid-template-columns: 1fr; height: auto; }
-    .right-panel { height: 400px; }
-  }
+@media (max-width: 768px) {
+  main { grid-template-columns: 1fr; height: auto; overflow: visible; }
+  .right { min-height: 360px; }
+  .metrics-grid { grid-template-columns: repeat(2,1fr); }
+  .record-zone { padding: 28px 22px; gap: 24px; }
+  .result-section, .waveform-section, .debug-section { padding-left: 22px; padding-right: 22px; }
+  header { padding: 0 18px; }
+  .version-tag { display: none; }
+  .debug-grid { grid-template-columns: repeat(2,1fr); }
+  .result-name { font-size: 1.7rem; }
+  .conf-pct { font-size: 2.4rem; }
+}
 </style>
 </head>
 <body>
+<div class="app">
 
 <header>
-  <div>
-    <div class="logo">FartIQ™</div>
-    <div class="tagline">Advanced Flatulence Analysis System<br>by GasLab Industries</div>
+  <div class="brand">
+    <span class="brand-name">FartIQ</span>
+    <span class="brand-sub">Flatulence Analysis System</span>
   </div>
-  <div class="version">v2.1.0 — PRO</div>
+  <div class="header-meta">
+    <span class="version-tag">v3.0 PRO</span>
+    <div class="status-indicator">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Tap to begin</span>
+    </div>
+  </div>
 </header>
 
 <main>
-  <div class="left-panel">
+  <div class="left">
 
-    <div class="viz-container">
-      <div class="viz-label">WAVEFORM / SPECTROGRAM</div>
+    <div class="record-zone">
+      <div class="record-btn-wrap">
+        <button class="record-btn" id="recordBtn"></button>
+        <div class="record-ring" id="recordRing"></div>
+      </div>
+      <div class="record-label">
+        <h2 id="recHeading">Press &amp; hold<br>to analyse</h2>
+        <p id="recSub">Hold the button while the sound occurs.<br>Release when finished.</p>
+        <div class="hint" id="recHint">Or hold spacebar on desktop</div>
+      </div>
+    </div>
+
+    <div class="error-banner" id="errorBanner">
+      Microphone access denied — allow permissions and reload.
+    </div>
+
+    <div class="waveform-section">
+      <div class="section-label">Live signal</div>
       <canvas id="vizCanvas"></canvas>
     </div>
 
-    <div class="record-section">
-      <button class="record-btn" id="recordBtn" title="Hold to record"></button>
-      <div class="record-info">
-        <h2><span class="status-dot" id="statusDot"></span><span id="statusText">READY</span></h2>
-        <p>
-          Press & hold to capture<br>
-          Release to analyze<br>
-          Best at close range (0.5–1m)
-        </p>
+    <div class="result-section">
+      <div class="result-empty" id="resultEmpty">
+        <div class="result-empty-glyph">◌</div>
+        <p>Awaiting sample</p>
       </div>
-    </div>
 
-    <div class="error-msg" id="errorMsg">
-      ⚠ Microphone access denied. Please allow microphone permissions and reload.
-    </div>
-
-    <div class="result-card" id="resultCard">
-      <div class="result-idle" id="idleMsg">
-        [ AWAITING SAMPLE ]<br><br>
-        Press and hold record button<br>
-        to begin flatulence analysis
-      </div>
-      <div id="resultContent" style="display:none;">
-        <span class="result-emoji" id="resultEmoji"></span>
-        <div class="result-category" id="resultCategory"></div>
-        <div class="result-desc" id="resultDesc"></div>
-        <div class="confidence-bar">
-          <div class="confidence-label">
-            <span>CONFIDENCE</span>
-            <span id="confPct">0%</span>
+      <div class="result-card" id="resultCard">
+        <div class="result-header">
+          <div class="result-left">
+            <span class="result-emoji" id="resEmoji"></span>
+            <div class="result-name" id="resName"></div>
+            <div class="result-desc" id="resDesc"></div>
           </div>
-          <div class="bar-track">
-            <div class="bar-fill" id="confBar" style="width:0%"></div>
+          <div class="confidence-block">
+            <div class="conf-pct" id="resPct">—</div>
+            <div class="conf-sub">Confidence</div>
+            <div class="conf-track"><div class="conf-fill" id="resBar" style="width:0%"></div></div>
           </div>
         </div>
+
+        <div class="metrics-grid">
+          <div class="metric-cell">
+            <div class="mc-label">Fart Duration</div>
+            <div class="mc-val" id="mFartDur">—<span class="mc-unit">s</span></div>
+          </div>
+          <div class="metric-cell">
+            <div class="mc-label">Loudness</div>
+            <div class="mc-val" id="mLoudness">—<span class="mc-unit">dBFS</span></div>
+          </div>
+          <div class="metric-cell">
+            <div class="mc-label">Dom. Frequency</div>
+            <div class="mc-val" id="mFreq">—<span class="mc-unit">Hz</span></div>
+          </div>
+          <div class="metric-cell">
+            <div class="mc-label">Peak Level</div>
+            <div class="mc-val" id="mPeak">—<span class="mc-unit">dB</span></div>
+          </div>
+        </div>
+
+        <div class="ratings" id="ratingsBlock"></div>
       </div>
     </div>
 
-    <div class="metrics">
-      <div class="metric">
-        <div class="metric-label">Duration</div>
-        <div class="metric-value" id="mDuration">—<span class="metric-unit">s</span></div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Peak dB</div>
-        <div class="metric-value" id="mDb">—<span class="metric-unit">dB</span></div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Dom. Freq</div>
-        <div class="metric-value" id="mFreq">—<span class="metric-unit">Hz</span></div>
-      </div>
+    <div class="debug-section" id="debugSection">
+      <div class="section-label">Diagnostic data</div>
+      <div class="debug-grid" id="debugGrid"></div>
+      <div class="score-table" id="scoreTable"></div>
     </div>
 
   </div>
 
-  <div class="right-panel">
+  <div class="right">
     <div class="panel-header">
-      <span>ANALYSIS LOG</span>
-      <button class="clear-btn" onclick="clearHistory()">CLEAR</button>
+      <span class="panel-title">Analysis log</span>
+      <button class="clear-btn" onclick="clearHistory()">Clear</button>
     </div>
-
     <div class="history-list" id="historyList">
-      <div class="empty-history" id="emptyHistory">
-        NO SAMPLES RECORDED<br>
-        ——<br>
-        BEGIN ANALYSIS TO<br>POPULATE LOG
-      </div>
+      <div class="history-empty">No samples recorded</div>
     </div>
-
-    <div class="stats-footer">
-      <div class="stats-title">SESSION STATISTICS</div>
-      <div class="stat-row"><span>Total analyzed</span><span class="stat-val" id="statTotal">0</span></div>
-      <div class="stat-row"><span>Avg confidence</span><span class="stat-val" id="statAvgConf">—</span></div>
-      <div class="stat-row"><span>Most common</span><span class="stat-val" id="statCommon">—</span></div>
-      <div class="freq-chart" id="freqChart">
-        <!-- 8 bars for frequency distribution viz -->
-        <div class="freq-bar" style="height:5%"></div>
-        <div class="freq-bar" style="height:5%"></div>
-        <div class="freq-bar" style="height:5%"></div>
-        <div class="freq-bar" style="height:5%"></div>
-        <div class="freq-bar" style="height:5%"></div>
-        <div class="freq-bar" style="height:5%"></div>
-        <div class="freq-bar" style="height:5%"></div>
-        <div class="freq-bar" style="height:5%"></div>
+    <div class="session-stats">
+      <div class="session-title">Session summary</div>
+      <div class="session-grid">
+        <div><div class="ss-label">Total analysed</div><div class="ss-val" id="sTotal">0</div></div>
+        <div><div class="ss-label">Avg confidence</div><div class="ss-val" id="sConf">—</div></div>
+        <div><div class="ss-label">Longest fart</div><div class="ss-val" id="sLongest">—</div></div>
+        <div><div class="ss-label">Loudest</div><div class="ss-val" id="sLoudest">—</div></div>
       </div>
     </div>
   </div>
 </main>
 
+<footer>
+  <span class="footer-text">GasLab Industries — Professional Grade</span>
+  <span class="footer-text">© 2026 FartIQ</span>
+</footer>
+
+</div>
 <script>
-// ——— FART CATEGORIES ———
 const CATEGORIES = [
   {
-    name: "THE SQUEAKER",
+    name: "The Squeaker",
     emoji: "🐭",
-    desc: "Dominant high frequencies. Pinched, sharp, and unmistakable. Usually precedes laughter.",
+    desc: "High-frequency dominant emission. Pinched, sharp, unmistakable. Typically brief. Rarely goes unnoticed.",
     score: (f) => {
       let s = 0;
-      // Strong positive signals for high frequency content
       if (f.dominantFreq > 500) s += 4;
-      if (f.dominantFreq > 800) s += 3;  // extra bonus for very high
-      if (f.hiRatio > 0.25) s += 3;
-      if (f.hiRatio > 0.45) s += 2;      // extra if majority is hi-freq
+      if (f.dominantFreq > 800) s += 3;
+      if (f.hiRatio > 0.2) s += 3;
+      if (f.hiRatio > 0.4) s += 2;
       if (f.midRatio > 0.3) s += 1;
-      if (f.duration < 1.2) s += 1;
-      // Penalise if low-freq dominated (prevents rumbler bleed)
+      if (f.fartDuration < 1.2) s += 1;
       if (f.lowRatio > 0.6) s -= 4;
-      if (f.dominantFreq < 300) s -= 3;
+      if (f.dominantFreq < 300) s -= 4;
       return s;
     }
   },
   {
-    name: "THE RIPPER",
+    name: "The Ripper",
     emoji: "💥",
-    desc: "High amplitude, broad spectrum. Short and explosive. A classic crowd-stopper.",
+    desc: "Explosive onset, broad spectrum, elevated amplitude. Brief but unmistakably present. Silences rooms.",
     score: (f) => {
       let s = 0;
       if (f.amplitude > 0.45) s += 3;
       if (f.amplitude > 0.65) s += 2;
-      if (f.duration < 1.5) s += 2;
-      if (f.bandwidth > 300) s += 2;
-      if (f.dominantFreq > 150 && f.dominantFreq < 800) s += 1;
-      if (f.lowRatio < 0.5) s += 1; // not purely low-freq
+      if (f.fartDuration < 1.5) s += 2;
+      if (f.bandwidth > 280) s += 2;
+      if (f.dominantFreq > 150 && f.dominantFreq < 900) s += 1;
+      if (f.lowRatio < 0.55) s += 1;
       return s;
     }
   },
   {
-    name: "THE FOGHORN",
+    name: "The Foghorn",
     emoji: "🚢",
-    desc: "Low dominant frequency, very high amplitude. A warning to ships and small aircraft alike.",
+    desc: "Very low frequency, high amplitude. Resonant, commanding. Audible from adjacent rooms.",
     score: (f) => {
       let s = 0;
-      if (f.amplitude > 0.55) s += 3;
+      if (f.amplitude > 0.5) s += 3;
       if (f.dominantFreq < 200) s += 4;
       if (f.lowRatio > 0.65) s += 3;
-      if (f.duration > 0.8) s += 1;
-      // Must be loud to be a foghorn, not just low
-      if (f.amplitude < 0.35) s -= 3;
+      if (f.fartDuration > 0.8) s += 1;
+      if (f.amplitude < 0.3) s -= 4;
       return s;
     }
   },
   {
-    name: "THE RUMBLER",
+    name: "The Rumbler",
     emoji: "🌋",
-    desc: "Low frequency dominance, extended duration. Felt as much as heard. Rumbles the furniture.",
+    desc: "Sustained low-frequency emission of notable duration. Geological in character. Best experienced on hardwood.",
     score: (f) => {
       let s = 0;
-      if (f.dominantFreq < 300) s += 2;
-      if (f.lowRatio > 0.55) s += 2;
-      // STRICT duration requirement — must be long to be a rumbler
-      if (f.duration > 2.0) s += 4;
-      else if (f.duration > 1.5) s += 2;
-      else s -= 3; // penalise short sounds heavily
-      if (f.amplitude > 0.15 && f.amplitude < 0.6) s += 1;
-      // Penalise if high-freq content present (that's a squeaker)
-      if (f.hiRatio > 0.3) s -= 3;
-      if (f.dominantFreq > 400) s -= 4;
-      return s;
-    }
-  },
-  {
-    name: "THE WET ONE",
-    emoji: "💧",
-    desc: "Irregular amplitude envelope with broadband noise. The one that requires a follow-up assessment.",
-    score: (f) => {
-      let s = 0;
-      if (f.irregularity > 0.45) s += 3;
-      if (f.irregularity > 0.65) s += 2;
-      if (f.bandwidth > 280) s += 2;
-      if (f.burstiness > 0.25) s += 2;
-      if (f.amplitude > 0.15) s += 1;
-      return s;
-    }
-  },
-  {
-    name: "THE MACHINE GUN",
-    emoji: "💨",
-    desc: "Staccato bursts detected. Rapid-fire emission pattern. Highly rhythmic and persistent.",
-    score: (f) => {
-      let s = 0;
-      if (f.burstiness > 0.35) s += 4;
-      if (f.burstiness > 0.55) s += 2;
-      if (f.duration > 1.2) s += 2;
-      if (f.irregularity > 0.35) s += 1;
-      return s;
-    }
-  },
-  {
-    name: "THE SILENT BUT DEADLY",
-    emoji: "💀",
-    desc: "Low amplitude, extended low-frequency emission. Stealthy. Devastating. No survivors.",
-    score: (f) => {
-      let s = 0;
-      if (f.amplitude < 0.2) s += 5;
-      else if (f.amplitude < 0.3) s += 2;
       if (f.dominantFreq < 350) s += 2;
-      if (f.lowRatio > 0.4) s += 1;
-      if (f.duration > 0.5) s += 1;
-      // Must actually be quiet
-      if (f.amplitude > 0.4) s -= 5;
+      if (f.lowRatio > 0.5) s += 2;
+      if (f.fartDuration > 2.0) s += 5;
+      else if (f.fartDuration > 1.5) s += 2;
+      else s -= 4;
+      if (f.amplitude > 0.1 && f.amplitude < 0.65) s += 1;
+      if (f.hiRatio > 0.3) s -= 3;
+      if (f.dominantFreq > 450) s -= 4;
       return s;
     }
   },
   {
-    name: "THE PHANTOM",
+    name: "The Wet One",
+    emoji: "💧",
+    desc: "Irregular envelope, broadband noise signature. Variable frequency content. Requires immediate environmental reassessment.",
+    score: (f) => {
+      let s = 0;
+      if (f.irregularity > 0.4) s += 3;
+      if (f.irregularity > 0.6) s += 2;
+      if (f.bandwidth > 260) s += 2;
+      if (f.burstiness > 0.2) s += 2;
+      if (f.amplitude > 0.1) s += 1;
+      return s;
+    }
+  },
+  {
+    name: "The Machine Gun",
+    emoji: "💨",
+    desc: "Staccato burst pattern. Rhythmic amplitude modulation. High persistence. Spectators begin counting involuntarily.",
+    score: (f) => {
+      let s = 0;
+      if (f.burstiness > 0.3) s += 4;
+      if (f.burstiness > 0.5) s += 2;
+      if (f.fartDuration > 1.2) s += 2;
+      if (f.irregularity > 0.3) s += 1;
+      return s;
+    }
+  },
+  {
+    name: "The Silent But Deadly",
+    emoji: "💀",
+    desc: "Sub-threshold acoustic signature. Near-inaudible. Detectable only by proximity and the subsequent reactions of bystanders.",
+    score: (f) => {
+      let s = 0;
+      if (f.amplitude < 0.18) s += 5;
+      else if (f.amplitude < 0.28) s += 2;
+      if (f.dominantFreq < 380) s += 2;
+      if (f.fartDuration > 0.4) s += 1;
+      if (f.amplitude > 0.4) s -= 6;
+      return s;
+    }
+  },
+  {
+    name: "The Phantom",
     emoji: "👻",
-    desc: "Barely registered on sensors. Near-inaudible. An existential mystery for all nearby parties.",
+    desc: "Signal barely registered. Origin unknown. Presence debatable. Everyone suspects someone else.",
     score: (f) => {
       let s = 0;
       if (f.amplitude < 0.12) s += 6;
@@ -680,344 +393,303 @@ const CATEGORIES = [
   },
 ];
 
-// ——— STATE ———
-let audioCtx, analyser, mediaStream, source;
+let audioCtx, analyser, source, hpf, notch, mediaStream;
 let isRecording = false;
-let recordStart = 0;
-let dataLog = [];       // time-domain chunks
-let freqLog = [];       // frequency-domain snapshots collected during recording
+let dataLog = [], freqLog = [];
 let history = [];
-let animFrame;
-let vizDataBuffer = new Float32Array(2048);
+let sessionLongest = 0, sessionLoudest = -999;
 
-// ——— AUDIO SETUP ———
+function setStatus(cls, text) {
+  const d = document.getElementById('statusDot');
+  d.className = 'status-dot' + (cls ? ' '+cls : '');
+  document.getElementById('statusText').textContent = text;
+}
+
 async function initAudio() {
   if (audioCtx) return true;
   try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: {
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: false
-    }});
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 4096; // higher resolution for better freq detection
-    analyser.smoothingTimeConstant = 0.3; // less smoothing = more responsive
-
-    // High-pass filter at 60Hz — cuts phone handling noise & room rumble
-    const hpf = audioCtx.createBiquadFilter();
-    hpf.type = 'highpass';
-    hpf.frequency.value = 60;
-    hpf.Q.value = 0.7;
-
-    // Notch filter to kill electrical hum
-    const notch = audioCtx.createBiquadFilter();
-    notch.type = 'notch';
-    notch.frequency.value = 50;
-    notch.Q.value = 10;
-
+    analyser.fftSize = 4096;
+    analyser.smoothingTimeConstant = 0.2;
+    hpf = audioCtx.createBiquadFilter();
+    hpf.type = 'highpass'; hpf.frequency.value = 55; hpf.Q.value = 0.7;
+    notch = audioCtx.createBiquadFilter();
+    notch.type = 'notch'; notch.frequency.value = 50; notch.Q.value = 10;
     source = audioCtx.createMediaStreamSource(mediaStream);
-    source.connect(hpf);
-    hpf.connect(notch);
-    notch.connect(analyser);
+    source.connect(hpf); hpf.connect(notch); notch.connect(analyser);
+    setStatus('ready', 'Ready');
     startViz();
     return true;
   } catch(e) {
-    document.getElementById('errorMsg').style.display = 'block';
+    document.getElementById('errorBanner').style.display = 'block';
+    setStatus('', 'No mic');
     return false;
   }
 }
 
-// ——— VISUALIZATION ———
 function startViz() {
   const canvas = document.getElementById('vizCanvas');
   const ctx = canvas.getContext('2d');
-
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+  const fbuf = new Uint8Array(analyser.frequencyBinCount);
   function draw() {
-    animFrame = requestAnimationFrame(draw);
+    requestAnimationFrame(draw);
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
     const W = canvas.width, H = canvas.height;
-
-    const bufLen = analyser.frequencyBinCount;
-    const dataArr = new Uint8Array(bufLen);
-
-    ctx.fillStyle = '#050505';
+    ctx.fillStyle = '#FAFAF8';
     ctx.fillRect(0, 0, W, H);
-
+    ctx.strokeStyle = '#E8E6E1'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
     if (isRecording) {
-      // Waveform
-      analyser.getByteTimeDomainData(dataArr);
-      ctx.strokeStyle = '#c8f53a';
-      ctx.lineWidth = 1.5;
-      ctx.shadowColor = '#c8f53a';
-      ctx.shadowBlur = 6;
+      analyser.getByteTimeDomainData(buf);
+      ctx.strokeStyle = '#1C1B19'; ctx.lineWidth = 1.5;
       ctx.beginPath();
-      const sliceW = W / bufLen;
-      for (let i = 0; i < bufLen; i++) {
-        const v = dataArr[i] / 128;
-        const y = (v * H) / 2;
-        i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * sliceW, y);
+      for (let i = 0; i < buf.length; i++) {
+        const y = (buf[i]/255) * H;
+        i === 0 ? ctx.moveTo(0,y) : ctx.lineTo(i*(W/buf.length),y);
       }
       ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // Collect time-domain data
-      analyser.getFloatTimeDomainData(vizDataBuffer);
-      const chunk = new Float32Array(vizDataBuffer);
-      dataLog.push(chunk);
-      // Collect frequency snapshots every ~4 frames
-      if (dataLog.length % 4 === 0) {
-        const fSnap = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(fSnap);
-        freqLog.push(fSnap);
+      if (dataLog.length % 3 === 0) {
+        const snap = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(snap);
+        freqLog.push(snap);
       }
+      const td = new Float32Array(analyser.fftSize);
+      analyser.getFloatTimeDomainData(td);
+      dataLog.push(td);
     } else {
-      // Spectrum bars when idle
-      analyser.getByteFrequencyData(dataArr);
-      const barW = (W / 64) - 1;
-      for (let i = 0; i < 64; i++) {
-        const barH = (dataArr[i] / 255) * H * 0.8;
-        const hue = 80 + (i / 64) * 40;
-        ctx.fillStyle = `hsla(${hue}, 90%, 55%, 0.3)`;
-        ctx.fillRect(i * (barW + 1), H - barH, barW, barH);
+      analyser.getByteFrequencyData(fbuf);
+      const bw = W / 80;
+      for (let i = 0; i < 80; i++) {
+        const bh = (fbuf[i]/255) * H * 0.65;
+        ctx.fillStyle = `rgba(28,27,25,${0.05+(fbuf[i]/255)*0.09})`;
+        ctx.fillRect(i*bw, H-bh, bw-1, bh);
       }
-    }
-
-    // Grid lines
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-    ctx.lineWidth = 1;
-    ctx.shadowBlur = 0;
-    for (let y = 0; y < H; y += H/4) {
-      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
     }
   }
   draw();
 }
 
-// ——— ANALYSIS ———
 function analyzeRecording() {
   if (!dataLog.length) return;
+  const sr = audioCtx.sampleRate;
+  const total = dataLog.reduce((a,c)=>a+c.length,0);
+  const combined = new Float32Array(total);
+  let off = 0;
+  for (const c of dataLog) { combined.set(c, off); off += c.length; }
 
-  // Flatten all recorded time-domain chunks
-  const totalSamples = dataLog.reduce((a, c) => a + c.length, 0);
-  const combined = new Float32Array(totalSamples);
-  let offset = 0;
-  for (const chunk of dataLog) { combined.set(chunk, offset); offset += chunk.length; }
-
-  const sampleRate = audioCtx.sampleRate;
-  const duration = totalSamples / sampleRate;
-
-  // RMS & peak amplitude
   let sumSq = 0, peak = 0;
   for (let i = 0; i < combined.length; i++) {
-    sumSq += combined[i] ** 2;
+    sumSq += combined[i]**2;
     if (Math.abs(combined[i]) > peak) peak = Math.abs(combined[i]);
   }
   const rms = Math.sqrt(sumSq / combined.length);
-  const amplitude = Math.min(1, peak * 3); // normalized 0–1
+  const amplitude = Math.min(1, peak * 3);
+  const loudnessDb = Math.round(20 * Math.log10(Math.max(rms, 1e-7)));
+  const peakDb = Math.round(20 * Math.log10(Math.max(peak, 1e-7)));
 
-  // ——— Average FFT from snapshots taken DURING recording ———
+  // Fart duration: find signal above noise floor using 50ms windows
+  const winSz = Math.floor(sr * 0.05);
+  const nWins = Math.floor(combined.length / winSz);
+  const winRms = [];
+  for (let w = 0; w < nWins; w++) {
+    let sq = 0;
+    for (let i = 0; i < winSz; i++) sq += combined[w*winSz+i]**2;
+    winRms.push(Math.sqrt(sq/winSz));
+  }
+  const floor = Math.min(...winRms) * 4 + 0.003;
+  let fs = -1, fe = -1;
+  for (let w = 0; w < nWins; w++) {
+    if (winRms[w] > floor) { if (fs===-1) fs=w; fe=w; }
+  }
+  const fartDuration = fs===-1 ? 0 : ((fe-fs+1)*winSz)/sr;
+
+  // Average FFT
   const binCount = analyser.frequencyBinCount;
   const avgFreq = new Float32Array(binCount);
   if (freqLog.length > 0) {
-    for (const snap of freqLog) {
-      for (let i = 0; i < binCount; i++) avgFreq[i] += snap[i];
-    }
-    for (let i = 0; i < binCount; i++) avgFreq[i] /= freqLog.length;
+    for (const s of freqLog) for (let i=0;i<binCount;i++) avgFreq[i]+=s[i];
+    for (let i=0;i<binCount;i++) avgFreq[i]/=freqLog.length;
   }
 
-  // Dominant frequency from averaged FFT
-  // Focus on fart-relevant range: 50–2000 Hz
-  const fftSize = analyser.fftSize;
-  const minBin = Math.floor(50 * fftSize / sampleRate);
-  const maxBin = Math.floor(2000 * fftSize / sampleRate);
-  let peakBin = minBin, peakVal = 0;
-  for (let i = minBin; i < Math.min(maxBin, binCount); i++) {
-    if (avgFreq[i] > peakVal) { peakVal = avgFreq[i]; peakBin = i; }
+  const fftSz = analyser.fftSize;
+  const minB = Math.ceil(60*fftSz/sr);
+  const maxB = Math.floor(3000*fftSz/sr);
+  let pkBin = minB, pkVal = 0;
+  for (let i=minB; i<Math.min(maxB,binCount); i++) {
+    if (avgFreq[i]>pkVal) { pkVal=avgFreq[i]; pkBin=i; }
   }
-  const dominantFreq = Math.round(peakBin * sampleRate / fftSize);
+  const dominantFreq = Math.round(pkBin*sr/fftSz);
 
-  // Energy in frequency bands — expanded hi range for squeaker detection
-  const lowEnd = Math.floor(300 * fftSize / sampleRate);
-  const midEnd = Math.floor(800 * fftSize / sampleRate);
-  const hiEnd  = Math.floor(3000 * fftSize / sampleRate);
-  let lowEnergy = 0, midEnergy = 0, hiEnergy = 0, totalEnergy = 0;
-  for (let i = minBin; i < hiEnd && i < binCount; i++) {
-    const e = avgFreq[i] ** 2;
-    totalEnergy += e;
-    if (i < lowEnd) lowEnergy += e;
-    else if (i < midEnd) midEnergy += e;
-    else hiEnergy += e;
+  const lE = Math.floor(300*fftSz/sr);
+  const mE = Math.floor(800*fftSz/sr);
+  const hE = Math.floor(3000*fftSz/sr);
+  let lowE=0,midE=0,hiE=0,totE=0;
+  for (let i=minB; i<Math.min(hE,binCount); i++) {
+    const e=avgFreq[i]**2; totE+=e;
+    if (i<lE) lowE+=e; else if (i<mE) midE+=e; else hiE+=e;
   }
-  const lowRatio = totalEnergy > 0 ? lowEnergy / totalEnergy : 0;
-  const midRatio = totalEnergy > 0 ? midEnergy / totalEnergy : 0;
-  const hiRatio  = totalEnergy > 0 ? hiEnergy  / totalEnergy : 0;
+  const lowRatio = totE>0?lowE/totE:0;
+  const midRatio = totE>0?midE/totE:0;
+  const hiRatio  = totE>0?hiE/totE:0;
 
-  // Bandwidth: how spread the spectrum is
-  const threshold = peakVal * 0.25;
-  let activeBins = 0;
-  for (let i = minBin; i < hiEnd && i < binCount; i++) {
-    if (avgFreq[i] > threshold) activeBins++;
-  }
-  const bandwidth = activeBins * sampleRate / fftSize;
+  const thr = pkVal*0.2;
+  let actBins=0;
+  for (let i=minB;i<Math.min(hE,binCount);i++) if(avgFreq[i]>thr) actBins++;
+  const bandwidth = actBins*sr/fftSz;
 
-  // Amplitude envelope irregularity (choppiness)
-  const windowSize = Math.floor(sampleRate * 0.05); // 50ms windows
-  const windows = Math.floor(combined.length / windowSize);
-  const envVals = [];
-  for (let w = 0; w < windows; w++) {
-    let wSum = 0;
-    for (let i = 0; i < windowSize; i++) wSum += combined[w * windowSize + i] ** 2;
-    envVals.push(Math.sqrt(wSum / windowSize));
-  }
-  const envMean = envVals.reduce((a,b)=>a+b,0) / (envVals.length || 1);
-  const envVar = envVals.reduce((a,v)=>a+(v-envMean)**2,0) / (envVals.length || 1);
-  const irregularity = Math.min(1, Math.sqrt(envVar) / (envMean + 0.001));
+  const envMean = winRms.reduce((a,b)=>a+b,0)/(winRms.length||1);
+  const envVar = winRms.reduce((a,v)=>a+(v-envMean)**2,0)/(winRms.length||1);
+  const irregularity = Math.min(1, Math.sqrt(envVar)/(envMean+0.001));
+  const spikeTh = envMean*1.6;
+  const spikes = winRms.filter(v=>v>spikeTh).length;
+  const burstiness = Math.min(1, spikes/(winRms.length||1));
 
-  // Burstiness: count amplitude spikes vs quieter moments
-  const spikeThreshold = envMean * 1.5;
-  let spikes = 0;
-  for (const v of envVals) if (v > spikeThreshold) spikes++;
-  const burstiness = Math.min(1, spikes / (envVals.length || 1));
+  const f = { amplitude, rms, fartDuration, dominantFreq, bandwidth, irregularity, burstiness, lowRatio, midRatio, hiRatio, loudnessDb, peakDb };
 
-  const features = { amplitude, rms, duration, dominantFreq, bandwidth, irregularity, burstiness, lowRatio, midRatio, hiRatio };
+  const scores = CATEGORIES.map(cat=>({cat, score:cat.score(f)}));
+  scores.sort((a,b)=>b.score-a.score);
+  const match = scores[0].cat;
+  const gap = scores[0].score-(scores[1]?.score||0);
+  const confidence = Math.min(97, Math.max(52, Math.round(58+gap*4+Math.random()*6)));
 
-  // ——— CLASSIFY with priority scoring ———
-  // Score each category and pick the best match
-  const scores = CATEGORIES.map(cat => ({
-    cat,
-    score: cat.score(features)
-  }));
-  scores.sort((a,b) => b.score - a.score);
-  const match = scores[0].score > 0 ? scores[0].cat : CATEGORIES[CATEGORIES.length - 1];
+  const ratings = [
+    { name:'Intensity',  val:Math.min(100, Math.round(amplitude*120)) },
+    { name:'Longevity',  val:Math.min(100, Math.round((fartDuration/4)*100)) },
+    { name:'Pitch',      val:Math.min(100, Math.round((dominantFreq/2000)*100)) },
+    { name:'Complexity', val:Math.min(100, Math.round(irregularity*100)) },
+  ];
 
-  // Confidence based on how much better the top match is vs second
-  const gap = scores[0].score - (scores[1]?.score || 0);
-  const confidence = Math.min(97, Math.round(60 + gap * 30 + Math.random() * 8));
+  showResult(match, confidence, f, ratings, scores);
+  addHistory(match, confidence, fartDuration, loudnessDb);
+  if (fartDuration > sessionLongest) sessionLongest = fartDuration;
+  if (loudnessDb > sessionLoudest) sessionLoudest = loudnessDb;
+  updateSession(confidence);
 
-  const peakDb = Math.round(20 * Math.log10(Math.max(peak, 0.0001)));
-
-  showResult(match, confidence, features, peakDb);
-  addToHistory(match, confidence, duration);
-  updateMetrics(duration, peakDb, dominantFreq);
-  updateFreqChart(avgFreq);
-
-  dataLog = [];
-  freqLog = [];
+  dataLog=[]; freqLog=[];
 }
 
-function showResult(cat, confidence, features, peakDb) {
-  document.getElementById('idleMsg').style.display = 'none';
-  const rc = document.getElementById('resultContent');
-  rc.style.display = 'block';
-  document.getElementById('resultEmoji').textContent = cat.emoji;
-  document.getElementById('resultCategory').textContent = cat.name;
-  document.getElementById('resultDesc').textContent = cat.desc;
-  document.getElementById('confPct').textContent = confidence + '%';
-  const bar = document.getElementById('confBar');
-  bar.style.width = '0%';
-  setTimeout(() => { bar.style.width = confidence + '%'; }, 50);
+function showResult(cat, conf, f, ratings, scores) {
+  document.getElementById('resultEmpty').style.display='none';
+  document.getElementById('resultCard').className='result-card visible';
+  document.getElementById('resEmoji').textContent = cat.emoji;
+  document.getElementById('resName').textContent = cat.name;
+  document.getElementById('resDesc').textContent = cat.desc;
+  document.getElementById('resPct').textContent = conf+'%';
+  const bar = document.getElementById('resBar');
+  bar.style.width='0%';
+  setTimeout(()=>bar.style.width=conf+'%', 60);
+
+  document.getElementById('mFartDur').innerHTML = f.fartDuration>0
+    ? `${f.fartDuration.toFixed(2)}<span class="mc-unit">s</span>`
+    : `—<span class="mc-unit">s</span>`;
+  document.getElementById('mLoudness').innerHTML = `${f.loudnessDb}<span class="mc-unit">dBFS</span>`;
+  document.getElementById('mFreq').innerHTML = `${f.dominantFreq}<span class="mc-unit">Hz</span>`;
+  document.getElementById('mPeak').innerHTML = `${f.peakDb}<span class="mc-unit">dB</span>`;
+
+  document.getElementById('ratingsBlock').innerHTML = ratings.map(r=>`
+    <div class="rating-row">
+      <div class="rating-name">${r.name}</div>
+      <div class="rating-track"><div class="rating-fill" style="width:0%" data-t="${r.val}%"></div></div>
+      <div class="rating-val">${r.val}</div>
+    </div>`).join('');
+  setTimeout(()=>{
+    document.querySelectorAll('.rating-fill').forEach(el=>el.style.width=el.dataset.t);
+  }, 80);
+
+  const ds = document.getElementById('debugSection');
+  ds.style.display='block';
+  document.getElementById('debugGrid').innerHTML=[
+    ['domFreq',f.dominantFreq+'Hz'],['amplitude',f.amplitude.toFixed(3)],
+    ['lowRatio',(f.lowRatio*100).toFixed(0)+'%'],['midRatio',(f.midRatio*100).toFixed(0)+'%'],
+    ['hiRatio',(f.hiRatio*100).toFixed(0)+'%'],['fartDur',f.fartDuration.toFixed(2)+'s'],
+    ['irregular',f.irregularity.toFixed(3)],['burstiness',f.burstiness.toFixed(3)],
+  ].map(([l,v])=>`<div class="debug-cell"><div class="dc-label">${l}</div><div class="dc-val">${v}</div></div>`).join('');
+  document.getElementById('scoreTable').innerHTML=scores.map((s,i)=>`
+    <div class="score-row ${i===0?'top':''}">
+      <span>${s.cat.emoji} ${s.cat.name}</span>
+      <span class="score-num">${s.score}</span>
+    </div>`).join('');
 }
 
-function addToHistory(cat, confidence, duration) {
-  history.unshift({ cat, confidence, duration, time: new Date() });
+function addHistory(cat, conf, dur, loudness) {
+  history.unshift({cat,conf,dur,loudness});
   const list = document.getElementById('historyList');
-  const empty = document.getElementById('emptyHistory');
-  if (empty) empty.style.display = 'none';
-
+  const empty = list.querySelector('.history-empty');
+  if (empty) empty.remove();
   const item = document.createElement('div');
-  item.className = 'history-item';
-  item.innerHTML = `
-    <div class="history-emoji">${cat.emoji}</div>
-    <div class="history-info">
-      <div class="history-cat">${cat.name}</div>
-      <div class="history-meta">${duration.toFixed(1)}s · ${new Date().toLocaleTimeString()}</div>
+  item.className='history-item';
+  item.innerHTML=`
+    <div class="h-emoji">${cat.emoji}</div>
+    <div class="h-info">
+      <div class="h-name">${cat.name}</div>
+      <div class="h-meta">${dur>0?dur.toFixed(2)+'s':'—'} · ${loudness}dBFS · ${new Date().toLocaleTimeString()}</div>
     </div>
-    <div class="history-conf">${confidence}%</div>
-  `;
+    <div class="h-conf">${conf}%</div>`;
   list.insertBefore(item, list.firstChild);
-  updateStats();
-}
-
-function updateMetrics(dur, db, freq) {
-  document.getElementById('mDuration').innerHTML = `${dur.toFixed(1)}<span class="metric-unit">s</span>`;
-  document.getElementById('mDb').innerHTML = `${db}<span class="metric-unit">dB</span>`;
-  document.getElementById('mFreq').innerHTML = `${freq}<span class="metric-unit">Hz</span>`;
-}
-
-function updateFreqChart(freqData) {
-  const bars = document.getElementById('freqChart').children;
-  const maxVal = Math.max(...freqData.slice(0, freqData.length / 2));
-  const step = Math.floor(freqData.length / 16); // low-mid focus
-  for (let i = 0; i < 8; i++) {
-    let sum = 0;
-    for (let j = 0; j < step; j++) sum += freqData[i * step + j];
-    const h = maxVal > 0 ? Math.max(5, (sum / (step * maxVal)) * 100) : 5;
-    bars[i].style.height = h + '%';
-    bars[i].classList.toggle('active', h > 30);
-  }
-}
-
-function updateStats() {
-  document.getElementById('statTotal').textContent = history.length;
-  const avgConf = Math.round(history.reduce((a,h)=>a+h.confidence,0)/history.length);
-  document.getElementById('statAvgConf').textContent = avgConf + '%';
-  const counts = {};
-  history.forEach(h => { counts[h.cat.name] = (counts[h.cat.name]||0)+1; });
-  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
-  document.getElementById('statCommon').textContent = top ? top[0].split(' ')[1] : '—';
 }
 
 function clearHistory() {
-  history = [];
-  document.getElementById('historyList').innerHTML = '<div class="empty-history" id="emptyHistory">NO SAMPLES RECORDED<br>——<br>BEGIN ANALYSIS TO<br>POPULATE LOG</div>';
-  updateStats();
-  document.getElementById('statTotal').textContent = '0';
-  document.getElementById('statAvgConf').textContent = '—';
-  document.getElementById('statCommon').textContent = '—';
+  history=[]; sessionLongest=0; sessionLoudest=-999;
+  document.getElementById('historyList').innerHTML='<div class="history-empty">No samples recorded</div>';
+  updateSession(null);
 }
 
-// ——— RECORD BUTTON ———
-const btn = document.getElementById('recordBtn');
-const statusDot = document.getElementById('statusDot');
-const statusText = document.getElementById('statusText');
+function updateSession(lastConf) {
+  document.getElementById('sTotal').textContent=history.length;
+  if (history.length>0) {
+    const avg=Math.round(history.reduce((a,h)=>a+h.conf,0)/history.length);
+    document.getElementById('sConf').textContent=avg+'%';
+    document.getElementById('sLongest').textContent=sessionLongest>0?sessionLongest.toFixed(1)+'s':'—';
+    document.getElementById('sLoudest').textContent=sessionLoudest>-999?sessionLoudest+'dB':'—';
+  } else {
+    ['sConf','sLongest','sLoudest'].forEach(id=>document.getElementById(id).textContent='—');
+  }
+}
 
-async function startRecord() {
+const btn = document.getElementById('recordBtn');
+const ring = document.getElementById('recordRing');
+
+async function startRec() {
   const ok = await initAudio();
   if (!ok) return;
-  if (audioCtx.state === 'suspended') await audioCtx.resume();
-  isRecording = true;
-  recordStart = Date.now();
-  dataLog = [];
-  freqLog = [];
+  if (audioCtx.state==='suspended') await audioCtx.resume();
+  isRecording=true; dataLog=[]; freqLog=[];
   btn.classList.add('recording');
-  statusDot.classList.add('active');
-  statusText.textContent = 'RECORDING';
+  ring.classList.add('active');
+  setStatus('recording','Recording');
+  document.getElementById('recHeading').textContent='Recording…';
+  document.getElementById('recSub').textContent='Release when the sound is done.';
+  document.getElementById('recHint').textContent='';
 }
 
-function stopRecord() {
+function stopRec() {
   if (!isRecording) return;
-  isRecording = false;
+  isRecording=false;
   btn.classList.remove('recording');
-  statusDot.classList.remove('active');
-  statusText.textContent = 'ANALYZING...';
-  setTimeout(() => {
+  ring.classList.remove('active');
+  setStatus('analyzing','Analysing');
+  document.getElementById('recHeading').textContent='Analysing…';
+  document.getElementById('recSub').textContent='Processing audio sample.';
+  setTimeout(()=>{
     analyzeRecording();
-    statusText.textContent = 'COMPLETE';
-    setTimeout(() => statusText.textContent = 'READY', 2000);
-  }, 300);
+    setStatus('ready','Ready');
+    document.getElementById('recHeading').innerHTML='Press &amp; hold<br>to analyse';
+    document.getElementById('recSub').textContent='Hold the button while the sound occurs.\nRelease when finished.';
+    document.getElementById('recHint').textContent='Or hold spacebar on desktop';
+  }, 250);
 }
 
-btn.addEventListener('mousedown', startRecord);
-btn.addEventListener('mouseup', stopRecord);
-btn.addEventListener('touchstart', e => { e.preventDefault(); startRecord(); });
-btn.addEventListener('touchend', e => { e.preventDefault(); stopRecord(); });
-btn.addEventListener('mouseleave', () => { if (isRecording) stopRecord(); });
-
-// Keyboard shortcut
-document.addEventListener('keydown', e => { if (e.code === 'Space' && !isRecording) { e.preventDefault(); startRecord(); } });
-document.addEventListener('keyup', e => { if (e.code === 'Space') { e.preventDefault(); stopRecord(); } });
+btn.addEventListener('mousedown', startRec);
+btn.addEventListener('mouseup', stopRec);
+btn.addEventListener('mouseleave', ()=>{ if(isRecording) stopRec(); });
+btn.addEventListener('touchstart', e=>{ e.preventDefault(); startRec(); }, {passive:false});
+btn.addEventListener('touchend', e=>{ e.preventDefault(); stopRec(); }, {passive:false});
+document.addEventListener('keydown', e=>{ if(e.code==='Space'&&!isRecording&&!e.repeat){e.preventDefault();startRec();}});
+document.addEventListener('keyup', e=>{ if(e.code==='Space'){e.preventDefault();stopRec();}});
 </script>
 </body>
 </html>
