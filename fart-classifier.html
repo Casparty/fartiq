@@ -562,11 +562,16 @@ const CATEGORIES = [
     desc: "Dominant high frequencies. Pinched, sharp, and unmistakable. Usually precedes laughter.",
     score: (f) => {
       let s = 0;
-      if (f.dominantFreq > 600) s += 3;
-      if (f.dominantFreq > 900) s += 2;
-      if (f.hiRatio > 0.35) s += 2;
-      if (f.duration < 1.0) s += 1;
-      if (f.amplitude > 0.15) s += 1;
+      // Strong positive signals for high frequency content
+      if (f.dominantFreq > 500) s += 4;
+      if (f.dominantFreq > 800) s += 3;  // extra bonus for very high
+      if (f.hiRatio > 0.25) s += 3;
+      if (f.hiRatio > 0.45) s += 2;      // extra if majority is hi-freq
+      if (f.midRatio > 0.3) s += 1;
+      if (f.duration < 1.2) s += 1;
+      // Penalise if low-freq dominated (prevents rumbler bleed)
+      if (f.lowRatio > 0.6) s -= 4;
+      if (f.dominantFreq < 300) s -= 3;
       return s;
     }
   },
@@ -576,10 +581,12 @@ const CATEGORIES = [
     desc: "High amplitude, broad spectrum. Short and explosive. A classic crowd-stopper.",
     score: (f) => {
       let s = 0;
-      if (f.amplitude > 0.5) s += 3;
+      if (f.amplitude > 0.45) s += 3;
+      if (f.amplitude > 0.65) s += 2;
       if (f.duration < 1.5) s += 2;
-      if (f.bandwidth > 350) s += 2;
-      if (f.dominantFreq > 200 && f.dominantFreq < 700) s += 1;
+      if (f.bandwidth > 300) s += 2;
+      if (f.dominantFreq > 150 && f.dominantFreq < 800) s += 1;
+      if (f.lowRatio < 0.5) s += 1; // not purely low-freq
       return s;
     }
   },
@@ -589,10 +596,12 @@ const CATEGORIES = [
     desc: "Low dominant frequency, very high amplitude. A warning to ships and small aircraft alike.",
     score: (f) => {
       let s = 0;
-      if (f.amplitude > 0.6) s += 3;
-      if (f.dominantFreq < 250) s += 3;
-      if (f.lowRatio > 0.6) s += 2;
+      if (f.amplitude > 0.55) s += 3;
+      if (f.dominantFreq < 200) s += 4;
+      if (f.lowRatio > 0.65) s += 3;
       if (f.duration > 0.8) s += 1;
+      // Must be loud to be a foghorn, not just low
+      if (f.amplitude < 0.35) s -= 3;
       return s;
     }
   },
@@ -603,9 +612,15 @@ const CATEGORIES = [
     score: (f) => {
       let s = 0;
       if (f.dominantFreq < 300) s += 2;
-      if (f.lowRatio > 0.5) s += 2;
-      if (f.duration > 1.5) s += 3;
-      if (f.amplitude > 0.2 && f.amplitude < 0.65) s += 1;
+      if (f.lowRatio > 0.55) s += 2;
+      // STRICT duration requirement — must be long to be a rumbler
+      if (f.duration > 2.0) s += 4;
+      else if (f.duration > 1.5) s += 2;
+      else s -= 3; // penalise short sounds heavily
+      if (f.amplitude > 0.15 && f.amplitude < 0.6) s += 1;
+      // Penalise if high-freq content present (that's a squeaker)
+      if (f.hiRatio > 0.3) s -= 3;
+      if (f.dominantFreq > 400) s -= 4;
       return s;
     }
   },
@@ -615,10 +630,11 @@ const CATEGORIES = [
     desc: "Irregular amplitude envelope with broadband noise. The one that requires a follow-up assessment.",
     score: (f) => {
       let s = 0;
-      if (f.irregularity > 0.5) s += 3;
-      if (f.bandwidth > 300) s += 2;
-      if (f.burstiness > 0.3) s += 2;
-      if (f.amplitude > 0.2) s += 1;
+      if (f.irregularity > 0.45) s += 3;
+      if (f.irregularity > 0.65) s += 2;
+      if (f.bandwidth > 280) s += 2;
+      if (f.burstiness > 0.25) s += 2;
+      if (f.amplitude > 0.15) s += 1;
       return s;
     }
   },
@@ -628,9 +644,10 @@ const CATEGORIES = [
     desc: "Staccato bursts detected. Rapid-fire emission pattern. Highly rhythmic and persistent.",
     score: (f) => {
       let s = 0;
-      if (f.burstiness > 0.4) s += 3;
+      if (f.burstiness > 0.35) s += 4;
+      if (f.burstiness > 0.55) s += 2;
       if (f.duration > 1.2) s += 2;
-      if (f.irregularity > 0.4) s += 2;
+      if (f.irregularity > 0.35) s += 1;
       return s;
     }
   },
@@ -640,10 +657,13 @@ const CATEGORIES = [
     desc: "Low amplitude, extended low-frequency emission. Stealthy. Devastating. No survivors.",
     score: (f) => {
       let s = 0;
-      if (f.amplitude < 0.25) s += 4;
+      if (f.amplitude < 0.2) s += 5;
+      else if (f.amplitude < 0.3) s += 2;
       if (f.dominantFreq < 350) s += 2;
-      if (f.lowRatio > 0.4) s += 2;
+      if (f.lowRatio > 0.4) s += 1;
       if (f.duration > 0.5) s += 1;
+      // Must actually be quiet
+      if (f.amplitude > 0.4) s -= 5;
       return s;
     }
   },
@@ -653,8 +673,8 @@ const CATEGORIES = [
     desc: "Barely registered on sensors. Near-inaudible. An existential mystery for all nearby parties.",
     score: (f) => {
       let s = 0;
-      if (f.amplitude < 0.15) s += 5;
-      if (f.rms < 0.05) s += 3;
+      if (f.amplitude < 0.12) s += 6;
+      if (f.rms < 0.04) s += 4;
       return s;
     }
   },
@@ -674,13 +694,32 @@ let vizDataBuffer = new Float32Array(2048);
 async function initAudio() {
   if (audioCtx) return true;
   try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false
+    }});
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 2048;
-    analyser.smoothingTimeConstant = 0.5;
+    analyser.fftSize = 4096; // higher resolution for better freq detection
+    analyser.smoothingTimeConstant = 0.3; // less smoothing = more responsive
+
+    // High-pass filter at 60Hz — cuts phone handling noise & room rumble
+    const hpf = audioCtx.createBiquadFilter();
+    hpf.type = 'highpass';
+    hpf.frequency.value = 60;
+    hpf.Q.value = 0.7;
+
+    // Notch filter to kill electrical hum
+    const notch = audioCtx.createBiquadFilter();
+    notch.type = 'notch';
+    notch.frequency.value = 50;
+    notch.Q.value = 10;
+
     source = audioCtx.createMediaStreamSource(mediaStream);
-    source.connect(analyser);
+    source.connect(hpf);
+    hpf.connect(notch);
+    notch.connect(analyser);
     startViz();
     return true;
   } catch(e) {
@@ -799,10 +838,10 @@ function analyzeRecording() {
   }
   const dominantFreq = Math.round(peakBin * sampleRate / fftSize);
 
-  // Energy in frequency bands
+  // Energy in frequency bands — expanded hi range for squeaker detection
   const lowEnd = Math.floor(300 * fftSize / sampleRate);
   const midEnd = Math.floor(800 * fftSize / sampleRate);
-  const hiEnd  = Math.floor(2000 * fftSize / sampleRate);
+  const hiEnd  = Math.floor(3000 * fftSize / sampleRate);
   let lowEnergy = 0, midEnergy = 0, hiEnergy = 0, totalEnergy = 0;
   for (let i = minBin; i < hiEnd && i < binCount; i++) {
     const e = avgFreq[i] ** 2;
@@ -812,6 +851,7 @@ function analyzeRecording() {
     else hiEnergy += e;
   }
   const lowRatio = totalEnergy > 0 ? lowEnergy / totalEnergy : 0;
+  const midRatio = totalEnergy > 0 ? midEnergy / totalEnergy : 0;
   const hiRatio  = totalEnergy > 0 ? hiEnergy  / totalEnergy : 0;
 
   // Bandwidth: how spread the spectrum is
@@ -841,7 +881,7 @@ function analyzeRecording() {
   for (const v of envVals) if (v > spikeThreshold) spikes++;
   const burstiness = Math.min(1, spikes / (envVals.length || 1));
 
-  const features = { amplitude, rms, duration, dominantFreq, bandwidth, irregularity, burstiness, lowRatio, hiRatio };
+  const features = { amplitude, rms, duration, dominantFreq, bandwidth, irregularity, burstiness, lowRatio, midRatio, hiRatio };
 
   // ——— CLASSIFY with priority scoring ———
   // Score each category and pick the best match
