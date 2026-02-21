@@ -282,14 +282,20 @@ const CATEGORIES = [
     desc: "High-frequency dominant emission. Pinched, sharp, unmistakable. Typically brief. Rarely goes unnoticed.",
     score: (f) => {
       let s = 0;
-      if (f.dominantFreq > 500) s += 4;
-      if (f.dominantFreq > 800) s += 3;
-      if (f.hiRatio > 0.2) s += 3;
-      if (f.hiRatio > 0.4) s += 2;
-      if (f.midRatio > 0.3) s += 1;
-      if (f.fartDuration < 1.2) s += 1;
-      if (f.lowRatio > 0.6) s -= 4;
-      if (f.dominantFreq < 300) s -= 4;
+      // hiRatio is the primary signal — squeakers push energy into 1k-4kHz
+      if (f.hiRatio > 0.25) s += 4;
+      if (f.hiRatio > 0.35) s += 3;
+      if (f.hiRatio > 0.50) s += 3;
+      // mid presence also counts
+      if (f.midRatio > 0.30) s += 2;
+      if (f.midRatio > 0.45) s += 2;
+      // short duration bonus
+      if (f.fartDuration < 1.5) s += 1;
+      // dominantFreq above 400Hz is a bonus but NOT required — phone mics lie
+      if (f.dominantFreq > 400) s += 2;
+      if (f.dominantFreq > 700) s += 2;
+      // penalise only if overwhelmingly low
+      if (f.lowRatio > 0.7) s -= 5;
       return s;
     }
   },
@@ -301,10 +307,12 @@ const CATEGORIES = [
       let s = 0;
       if (f.amplitude > 0.45) s += 3;
       if (f.amplitude > 0.65) s += 2;
-      if (f.fartDuration < 1.5) s += 2;
+      // Must be genuinely short — require actual fart detection
+      if (f.fartDuration > 0 && f.fartDuration < 1.0) s += 3;
+      else if (f.fartDuration > 0 && f.fartDuration < 1.5) s += 1;
+      else if (f.fartDuration === 0) s -= 2; // no signal detected = not a ripper
       if (f.bandwidth > 280) s += 2;
-      if (f.dominantFreq > 150 && f.dominantFreq < 900) s += 1;
-      if (f.lowRatio < 0.55) s += 1;
+      if (f.dominantFreq > 200 && f.dominantFreq < 1200) s += 1;
       return s;
     }
   },
@@ -413,12 +421,15 @@ async function initAudio() {
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 4096;
     analyser.smoothingTimeConstant = 0.2;
+    // Two-stage HPF to aggressively kill phone handling rumble below 150Hz
     hpf = audioCtx.createBiquadFilter();
-    hpf.type = 'highpass'; hpf.frequency.value = 55; hpf.Q.value = 0.7;
+    hpf.type = 'highpass'; hpf.frequency.value = 150; hpf.Q.value = 0.9;
+    const hpf2 = audioCtx.createBiquadFilter();
+    hpf2.type = 'highpass'; hpf2.frequency.value = 120; hpf2.Q.value = 0.7;
     notch = audioCtx.createBiquadFilter();
     notch.type = 'notch'; notch.frequency.value = 50; notch.Q.value = 10;
     source = audioCtx.createMediaStreamSource(mediaStream);
-    source.connect(hpf); hpf.connect(notch); notch.connect(analyser);
+    source.connect(hpf); hpf.connect(hpf2); hpf2.connect(notch); notch.connect(analyser);
     setStatus('ready', 'Ready');
     startViz();
     return true;
@@ -491,7 +502,7 @@ function analyzeRecording() {
   const loudnessDb = Math.round(20 * Math.log10(Math.max(rms, 1e-7)));
   const peakDb = Math.round(20 * Math.log10(Math.max(peak, 1e-7)));
 
-  // Fart duration: find signal above noise floor using 50ms windows
+  // Fart duration: 20th percentile baseline, require 8x above quiet to count as signal
   const winSz = Math.floor(sr * 0.05);
   const nWins = Math.floor(combined.length / winSz);
   const winRms = [];
@@ -500,7 +511,9 @@ function analyzeRecording() {
     for (let i = 0; i < winSz; i++) sq += combined[w*winSz+i]**2;
     winRms.push(Math.sqrt(sq/winSz));
   }
-  const floor = Math.min(...winRms) * 4 + 0.003;
+  const sorted = [...winRms].sort((a,b)=>a-b);
+  const quietBaseline = sorted[Math.floor(sorted.length * 0.2)] || 0;
+  const floor = Math.max(quietBaseline * 8, 0.008);
   let fs = -1, fe = -1;
   for (let w = 0; w < nWins; w++) {
     if (winRms[w] > floor) { if (fs===-1) fs=w; fe=w; }
@@ -516,7 +529,7 @@ function analyzeRecording() {
   }
 
   const fftSz = analyser.fftSize;
-  const minB = Math.ceil(60*fftSz/sr);
+  const minB = Math.ceil(160*fftSz/sr); // match HPF cutoff
   const maxB = Math.floor(3000*fftSz/sr);
   let pkBin = minB, pkVal = 0;
   for (let i=minB; i<Math.min(maxB,binCount); i++) {
@@ -524,9 +537,9 @@ function analyzeRecording() {
   }
   const dominantFreq = Math.round(pkBin*sr/fftSz);
 
-  const lE = Math.floor(300*fftSz/sr);
-  const mE = Math.floor(800*fftSz/sr);
-  const hE = Math.floor(3000*fftSz/sr);
+  const lE = Math.floor(400*fftSz/sr);  // low: 160-400Hz
+  const mE = Math.floor(1000*fftSz/sr); // mid: 400-1000Hz
+  const hE = Math.floor(4000*fftSz/sr); // hi: 1000-4000Hz
   let lowE=0,midE=0,hiE=0,totE=0;
   for (let i=minB; i<Math.min(hE,binCount); i++) {
     const e=avgFreq[i]**2; totE+=e;
